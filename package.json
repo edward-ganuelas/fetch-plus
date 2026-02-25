@@ -1,0 +1,29 @@
+{
+  "name": "fetch-plus",
+  "private": true,
+  "version": "1.0.0.alpha.1",
+  "type": "module",
+  "main": "dist/fetch-plus.umd.cjs",
+  "module": "dist/fetch-plus.js",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/fetch-plus.js",
+      "require": "./dist/fetch-plus.umd.cjs"
+    }
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.0",
+    "msw": "^2.12.10",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18"
+  }
+}
