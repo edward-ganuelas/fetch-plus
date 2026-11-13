@@ -1,50 +1,65 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# fetch-plus Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Fetch-Native Contract
+The library MUST build on the platform Fetch API and preserve its established
+request, response, and cancellation behavior. Any intentional difference or
+extension MUST be documented and covered by tests. This keeps the library
+predictable for developers who already use Fetch.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Minimal Runtime Footprint
+The production package MUST avoid runtime dependencies unless a user-facing
+capability cannot reasonably be delivered without one; each runtime dependency
+MUST have its need documented. The library MUST NOT perform network work or
+create externally visible side effects until called by the consumer. This
+keeps installations small and behavior explicit.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. Stable Package API
+Every public export MUST be documented. The ESM and CommonJS entry points
+declared by the package MUST provide equivalent supported behavior. Changes
+that break the public API MUST follow semantic versioning and include migration
+guidance.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Contract-Focused Testing
+Changes to externally observable behavior MUST include focused tests for the
+new behavior and relevant regressions. Tests that exercise HTTP behavior MUST
+use a controlled mock boundary rather than depend on external services. This
+makes the package contract verifiable and test runs repeatable.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Type-Safe Builds
+TypeScript source MUST pass the repository's strict compiler checks, and the
+production build MUST succeed before changes are considered ready. Public API
+changes MUST be checked against the package's declared distribution entry
+points so source correctness does not mask a broken published package.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+## Technical Constraints
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+The project MUST preserve the TypeScript and Vite library-build configuration
+as the source of truth for compilation and distribution. The package metadata
+MUST accurately describe the generated files and supported module entry
+points. Any change to supported runtime environments or build targets MUST be
+documented before relying on environment-specific behavior.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+## Development Workflow
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+Before review, contributors MUST run the focused tests relevant to their
+changes and the production build. Pull requests MUST describe user-visible API
+changes, compatibility impact, and any required migration. Reviewers MUST
+verify that changes comply with these principles and that exceptions are
+explicitly justified in the pull request.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution governs project design and delivery decisions. Amendments
+MUST be made by updating this document and MUST include a rationale and an
+impact assessment. Reviewers MUST assess proposed changes for consistency
+with the principles and identify any migration needed by existing consumers.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+The constitution uses semantic versioning: MAJOR for backward-incompatible
+governance changes, MINOR for new principles or materially expanded
+requirements, and PATCH for clarifications and non-semantic refinements.
+Compliance MUST be reviewed during pull-request review; a deviation MUST be
+called out and justified before merge.
+
+**Version**: 1.0.0 | **Ratified**: 2026-11-13 | **Last Amended**: 2026-11-13
