@@ -637,3 +637,7 @@ describe('US3', () => {
         }
     });
 });
+it('throws for non-string URLs', async () => {
+    const client = axiosCompatible.create();
+    await expect(client.get(123)).rejects.toThrow('Request URL must be a string');
+});

@@ -51,6 +51,9 @@ export function mergeRequest(defaults: ClientDefaults, request: RequestConfig): 
 }
 
 export function buildUrl(url: string, baseURL?: string, params?: QueryParams): string {
+    if (typeof url !== 'string') {
+        throw new TypeError('Request URL must be a string');
+    }
     const absolute = /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(url);
     const combined = baseURL && !absolute
         ? `${baseURL.replace(/\/+$/, '')}/${url.replace(/^\/+/, '')}`
