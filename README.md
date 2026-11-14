@@ -90,3 +90,5 @@ embedded-URL credentials are outside the supported contract.
 
 `npm pack` and `npm publish` run the test suite and build automatically before
 creating the package. Both commands require the development dependencies.
+Publishing targets GitHub Packages; installing from it requires configuring
+the package scope for that registry and authenticating.
