@@ -85,3 +85,10 @@ Unsupported request options are rejected rather than ignored. Complete Axios
 parity, custom adapters, progress events, automatic retries, caching,
 `CancelToken`, arbitrary transforms, configurable status validation, and
 embedded-URL credentials are outside the supported contract.
+
+## Packaging
+
+`npm pack` and `npm publish` run the test suite and build automatically before
+creating the package. Both commands require the development dependencies.
+Publishing targets GitHub Packages; installing from it requires configuring
+the package scope for that registry and authenticating.
