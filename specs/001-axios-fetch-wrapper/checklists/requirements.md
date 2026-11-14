@@ -38,4 +38,6 @@
 - Requirement review: FR-001 through FR-014 are testable and map to the
   acceptance scenarios or the clean-room review scenario. Scope exclusions
   and defaults are recorded under Assumptions.
+- Empty response data is explicitly `''`, including HEAD and 204 responses;
+  the contract and implementation tasks reflect the same choice.
 - All checklist items pass; no clarification markers remain.

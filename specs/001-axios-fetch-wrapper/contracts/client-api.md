@@ -65,13 +65,15 @@ them.
 
 Successful requests resolve to an object containing:
 
-- `data`: parsed JSON, response text, or the empty-body value.
+- `data`: parsed JSON, response text, or the empty string (`''`) for an empty
+  body, including HEAD and 204 responses.
 - `status`: numeric HTTP status.
 - `statusText`: HTTP status text.
 - `headers`: response headers.
 
 Valid JSON is parsed for JSON media types. Non-JSON response bodies are text;
-malformed JSON remains available as its original text.
+malformed JSON remains available as its original text. Empty HTTP error
+response bodies likewise have `response.data` set to `''`.
 
 ## Errors
 
