@@ -178,12 +178,12 @@ describe('US2', () => {
     }
 
     function mockPendingFetch() {
-        return vi.spyOn(globalThis, 'fetch').mockImplementation((_url, init) =>
+        return vi.spyOn(globalThis, 'fetch').mockImplementation((request) =>
             new Promise((_resolve, reject) => {
-                if (init.signal.aborted) {
+                if (request.signal.aborted) {
                     reject(new DOMException('Aborted', 'AbortError'));
                 } else {
-                    init.signal.addEventListener('abort', () =>
+                    request.signal.addEventListener('abort', () =>
                         reject(new DOMException('Aborted', 'AbortError')), { once: true });
                 }
             }));
@@ -272,7 +272,7 @@ describe('US2', () => {
     it('preserves fragments while adding query parameters', async () => {
         const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('ok'));
         await axiosCompatible.get('https://api.example.com/items?existing=one#section', { params: { flag: false } });
-        expect(fetchSpy.mock.calls[0][0]).toBe('https://api.example.com/items?existing=one&flag=false#section');
+        expect(fetchSpy.mock.calls[0][0].url).toBe('https://api.example.com/items?existing=one&flag=false#section');
     });
 
     it('preserves the original query bytes when appending or omitting parameters', async () => {
@@ -281,7 +281,7 @@ describe('US2', () => {
         await axiosCompatible.get(url, { params: { ignored: null } });
         await axiosCompatible.get(url, { params: { added: 'a b' } });
         await axiosCompatible.get('https://api.example.com/items?#section', { params: { added: 1 } });
-        expect(fetchSpy.mock.calls.map(([requestUrl]) => requestUrl)).toEqual([
+        expect(fetchSpy.mock.calls.map(([request]) => request.url)).toEqual([
             url,
             'https://api.example.com/items?token=%E9&name=a%20b&added=a+b#section',
             'https://api.example.com/items?added=1#section',
@@ -334,9 +334,9 @@ describe('US2', () => {
 
     it('keeps the timeout active while reading the response body', async () => {
         vi.useFakeTimers();
-        vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => new Response(new ReadableStream({
+        vi.spyOn(globalThis, 'fetch').mockImplementation(async (request) => new Response(new ReadableStream({
             start(controller) {
-                init.signal.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError')));
+                request.signal.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError')));
             },
         })));
         const assertion = expect(axiosCompatible.get('https://api.example.com/data', { timeout: 10 }))
@@ -466,6 +466,28 @@ describe('US3', () => {
         expect(fetchSpy).not.toHaveBeenCalled();
     });
 
+    it('preserves native request-validation errors and cleans up cancellation resources', async () => {
+        vi.useFakeTimers();
+        const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('network failure'));
+        const controller = new AbortController();
+        const removeListener = vi.spyOn(controller.signal, 'removeEventListener');
+        const options = { timeout: 100, signal: controller.signal };
+        const requests = [
+            { url: 'https://api.example.com/data', method: 'GET', data: { value: 1 } },
+            { url: 'https://api.example.com/data', method: 'HEAD', data: 'body' },
+            { url: 'http://[', method: 'GET' },
+            { url: 'https://api.example.com/data', method: 'TRACE' },
+        ];
+        for (const request of requests) {
+            const error = await axiosCompatible({ ...request, ...options }).catch((value) => value);
+            expect(error).toBeInstanceOf(TypeError);
+            expect(error).not.toHaveProperty('kind');
+            expect(vi.getTimerCount()).toBe(0);
+        }
+        expect(fetchSpy).not.toHaveBeenCalled();
+        expect(removeListener).toHaveBeenCalledTimes(requests.length);
+    });
+
     it('captures defaults when a request starts without request interceptors', async () => {
         const client = axiosCompatible.create({ headers: { 'X-Test': 'before' } });
         const pending = client.get('https://api.example.com/echo');
@@ -480,7 +502,7 @@ describe('US3', () => {
         const pending = client.get('https://api.example.com/data');
         client.defaults.params.tag.push('after');
         await pending;
-        expect(fetchSpy.mock.calls[0][0]).toBe('https://api.example.com/data?tag=before');
+        expect(fetchSpy.mock.calls[0][0].url).toBe('https://api.example.com/data?tag=before');
     });
 
     it('runs request interceptors in reverse and response interceptors in registration order', async () => {
