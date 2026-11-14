@@ -69,7 +69,7 @@ export class FetchPlusClient extends AxiosLike {
                 return await readResponse<T>(response);
             } catch (error) {
                 const kind = control.kind();
-                if (kind && !(error instanceof FetchPlusError)) throw new FetchPlusError(kind, { cause: error });
+                if (kind) throw new FetchPlusError(kind, { cause: error });
                 if (error instanceof FetchPlusError) throw error;
                 throw new FetchPlusError('network', { cause: error });
             }

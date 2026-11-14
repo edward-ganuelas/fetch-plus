@@ -3,6 +3,7 @@ import { setupServer } from 'msw/node';
 import { http, HttpResponse } from 'msw';
 import axiosCompatible from './main';
 import { AxiosLike } from './axios-like';
+import { FetchPlusError } from './errors';
 
 const server = setupServer(
     http.get('https://api.example.com/data', () =>
@@ -314,6 +315,25 @@ describe('US2', () => {
         controller.abort();
         await assertion;
         expect(removeListener).toHaveBeenCalledWith('abort', expect.any(Function));
+    });
+
+    it('classifies cancellation as canceled even when aborted with a prior FetchPlusError', async () => {
+        const previousHttpError = new FetchPlusError('http', {
+            response: { status: 500, statusText: 'Internal Server Error', data: {}, headers: new Headers() },
+        });
+        vi.spyOn(globalThis, 'fetch').mockImplementation((request) =>
+            new Promise((_resolve, reject) => {
+                request.signal.addEventListener('abort', () =>
+                    reject(request.signal.reason), { once: true });
+            }));
+        const controller = new AbortController();
+        const pending = axiosCompatible.get('https://api.example.com/data', { signal: controller.signal });
+        const assertion = expect(pending).rejects.toMatchObject({
+            kind: 'canceled',
+            cause: previousHttpError,
+        });
+        controller.abort(previousHttpError);
+        await assertion;
     });
 
     it('cleans up timers and listeners on success and transport failure', async () => {
