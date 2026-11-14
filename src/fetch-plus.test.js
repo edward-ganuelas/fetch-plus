@@ -1,89 +1,199 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import { setupServer } from 'msw/node';
-import { rest } from 'msw';
-// Replace this import with your actual function if needed
+import { http, HttpResponse } from 'msw';
 import axiosCompatible from './main';
+import { AxiosLike } from './axios-like';
 
 const server = setupServer(
-    rest.get('https://api.example.com/data', (req, res, ctx) => {
-        return res(ctx.status(200), ctx.json({ message: 'GET success' }));
+    http.get('https://api.example.com/data', () =>
+        HttpResponse.json({ message: 'GET success' })),
+    http.post('https://api.example.com/data', async ({ request }) =>
+        HttpResponse.json({ message: 'POST success', body: await request.json() }, { status: 201 })),
+    http.get('https://api.example.com/error', () =>
+        HttpResponse.json({ error: 'Not found' }, { status: 404 })),
+    http.all('https://api.example.com/echo', async ({ request }) => {
+        if (request.method === 'HEAD') return new HttpResponse(null, { status: 200 });
+        return HttpResponse.json({
+            method: request.method,
+            body: await request.text(),
+            contentType: request.headers.get('content-type'),
+        }, { headers: { 'X-Test-Received': request.headers.get('X-Test') ?? '' } });
     }),
-    rest.post('https://api.example.com/data', (req, res, ctx) => {
-        return res(ctx.status(201), ctx.json({ message: 'POST success', body: req.body }));
-    }),
-    rest.get('https://api.example.com/error', (req, res, ctx) => {
-        return res(ctx.status(404), ctx.json({ error: 'Not found' }));
-    })
+    http.get('https://api.example.com/text', () =>
+        new HttpResponse('plain text', { headers: { 'Content-Type': 'text/plain' } })),
+    http.get('https://api.example.com/malformed', () =>
+        new HttpResponse('{invalid', { headers: { 'Content-Type': 'application/json' } })),
+    http.get('https://api.example.com/problem', () =>
+        new HttpResponse('{"message":"ok"}', { headers: { 'Content-Type': 'application/problem+json; charset=utf-8' } })),
+    http.get('https://api.example.com/empty', () =>
+        new HttpResponse(null, { status: 204 })),
 );
 
-beforeAll(() => server.listen());
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-describe('axios-compatible function', () => {
-    it('should handle GET requests', async () => {
-        const response = await axiosCompatible.get('https://api.example.com/data');
+describe('US1', () => {
+    it('lets subclasses reuse convenience methods with their own request implementation', async () => {
+        class TestClient extends AxiosLike {
+            request(url, options) {
+                return Promise.resolve({ url, options });
+            }
+        }
+
+        const client = new TestClient();
+        await expect(client.get('/items', { method: 'POST', headers: { 'X-Test': 'yes' } }))
+            .resolves.toEqual({ url: '/items', options: { method: 'GET', headers: { 'X-Test': 'yes' } } });
+        await expect(client.post('/items', { value: 1 }, { method: 'GET' }))
+            .resolves.toEqual({ url: '/items', options: { method: 'POST', data: { value: 1 } } });
+    });
+
+    it('sends GET when called with a URL', async () => {
+        const response = await axiosCompatible('https://api.example.com/data');
         expect(response.status).toBe(200);
+        expect(response.statusText).toBe('OK');
+        expect(response.headers.get('content-type')).toContain('application/json');
         expect(response.data).toEqual({ message: 'GET success' });
     });
 
-    it('should handle POST requests with data', async () => {
-        const postData = { foo: 'bar' };
-        const response = await axiosCompatible.post('https://api.example.com/data', postData);
+    it('uses the method and data from a config object', async () => {
+        const response = await axiosCompatible({
+            url: 'https://api.example.com/data',
+            method: 'post',
+            data: { foo: 'bar' },
+        });
         expect(response.status).toBe(201);
-        expect(response.data).toEqual({ message: 'POST success', body: postData });
+        expect(response.data).toEqual({ message: 'POST success', body: { foo: 'bar' } });
     });
 
-    it('should handle error responses', async () => {
-        try {
-            await axiosCompatible.get('https://api.example.com/error');
-        } catch (error) {
-            expect(error.response.status).toBe(404);
-            expect(error.response.data).toEqual({ error: 'Not found' });
-        }
+    it('normalizes lowercase PATCH from a config object', async () => {
+        const response = await axiosCompatible({
+            url: 'https://api.example.com/echo',
+            method: 'patch',
+            data: { foo: 'bar' },
+        });
+        expect(response.data.method).toBe('PATCH');
+        expect(response.data.body).toBe('{"foo":"bar"}');
     });
 
-    it('should support custom config', async () => {
+    it('defaults a config-object request to GET', async () => {
+        const response = await axiosCompatible({ url: 'https://api.example.com/data' });
+        expect(response.data).toEqual({ message: 'GET success' });
+    });
+
+    it('accepts a URL with request options', async () => {
+        const response = await axiosCompatible('https://api.example.com/data', {
+            method: 'post',
+            data: { foo: 'bar' },
+        });
+        expect(response.data).toEqual({ message: 'POST success', body: { foo: 'bar' } });
+    });
+
+    it.each(['get', 'delete', 'options'])('sends %s with URL and config', async (method) => {
+        const response = await axiosCompatible[method]('https://api.example.com/echo', {
+            headers: { 'X-Test': 'yes' },
+        });
+        expect(response.data.method).toBe(method.toUpperCase());
+        expect(response.data.body).toBe('');
+        expect(response.headers.get('x-test-received')).toBe('yes');
+    });
+
+    it('sends HEAD and returns an empty body', async () => {
+        const response = await axiosCompatible.head('https://api.example.com/echo');
+        expect(response.status).toBe(200);
+        expect(response.data).toBe('');
+    });
+
+    it.each(['post', 'put', 'patch'])('serializes JSON with %s', async (method) => {
+        const response = await axiosCompatible[method]('https://api.example.com/echo', { foo: 'bar' });
+        expect(response.data).toEqual({
+            method: method.toUpperCase(),
+            body: '{"foo":"bar"}',
+            contentType: 'application/json',
+        });
+    });
+
+    it('preserves a caller-provided content type while serializing JSON', async () => {
+        const response = await axiosCompatible.post('https://api.example.com/echo', { foo: 'bar' }, {
+            headers: { 'content-type': 'application/custom' },
+        });
+        expect(response.data.body).toBe('{"foo":"bar"}');
+        expect(response.data.contentType).toBe('application/custom');
+    });
+
+    it('preserves non-JSON request body and platform content type', async () => {
+        const body = new URLSearchParams({ name: 'value' });
+        const response = await axiosCompatible.post('https://api.example.com/echo', body);
+        expect(response.data.body).toBe('name=value');
+        expect(response.data.contentType).toContain('application/x-www-form-urlencoded');
+    });
+
+    it('sends a readable stream body without adding a content type', async () => {
+        const body = new ReadableStream({
+            start(controller) {
+                controller.enqueue(new TextEncoder().encode('streamed body'));
+                controller.close();
+            },
+        });
+        const response = await axiosCompatible.post('https://api.example.com/echo', body);
+        expect(response.data.body).toBe('streamed body');
+        expect(response.data.contentType).toBeNull();
+    });
+
+    it('parses JSON media types with a structured suffix', async () => {
+        const response = await axiosCompatible.get('https://api.example.com/problem');
+        expect(response.data).toEqual({ message: 'ok' });
+    });
+
+    it('rejects unsupported options instead of ignoring them', async () => {
+        await expect(axiosCompatible.get('https://api.example.com/data', { params: { x: 1 } }))
+            .rejects.toThrow('Unsupported request option: params');
+    });
+
+    it.each([
+        ['text', 'plain text'],
+        ['malformed', '{invalid'],
+        ['empty', ''],
+    ])('returns %s response bodies as text', async (path, expected) => {
+        const response = await axiosCompatible.get(`https://api.example.com/${path}`);
+        expect(response.data).toBe(expected);
+    });
+});
+
+describe('US2', () => {
+    it('supports custom config', async () => {
         const response = await axiosCompatible.get('https://api.example.com/data', { headers: { 'X-Test': 'yes' } });
         expect(response.status).toBe(200);
         expect(response.data).toEqual({ message: 'GET success' });
     });
 
-    it('should support response interceptors', async () => {
-        // Save original interceptors if present
-        const originalInterceptors = axiosCompatible.interceptors?.response?.handlers?.slice();
+    it('supports query params', async () => {
+        const response = await axiosCompatible.get('https://api.example.com/data', { params: { foo: 'bar', baz: 1 } });
+        expect(response.status).toBe(200);
+        expect(response.data).toEqual({ message: 'GET success' });
+    });
+});
+
+describe('US3', () => {
+    it('exposes an HTTP error response', async () => {
+        await expect(axiosCompatible.get('https://api.example.com/error')).rejects.toMatchObject({
+            response: { status: 404, data: { error: 'Not found' } },
+        });
+    });
+
+    it('supports response interceptors', async () => {
         let intercepted = false;
-        // Add a response interceptor
         const interceptorId = axiosCompatible.interceptors.response.use((response) => {
             intercepted = true;
             response.data.intercepted = true;
             return response;
         });
-        const response = await axiosCompatible.get('https://api.example.com/data');
-        expect(intercepted).toBe(true);
-        expect(response.data).toEqual({ message: 'GET success', intercepted: true });
-        // Eject the interceptor after test
-        axiosCompatible.interceptors.response.eject(interceptorId);
-        // Restore original interceptors if needed
-        if (originalInterceptors) {
-            axiosCompatible.interceptors.response.handlers = originalInterceptors;
+        try {
+            const response = await axiosCompatible.get('https://api.example.com/data');
+            expect(intercepted).toBe(true);
+            expect(response.data).toEqual({ message: 'GET success', intercepted: true });
+        } finally {
+            axiosCompatible.interceptors.response.eject(interceptorId);
         }
-    });
-
-    it('should support being called as a function (axios callable)', async () => {
-        const response = await axiosCompatible('https://api.example.com/data');
-        expect(response.status).toBe(200);
-        expect(response.data).toEqual({ message: 'GET success' });
-    });
-
-    it('should support being called with a config object', async () => {
-        const response = await axiosCompatible({ url: 'https://api.example.com/data', method: 'get', headers: { 'X-Test': 'yes' } });
-        expect(response.status).toBe(200);
-        expect(response.data).toEqual({ message: 'GET success' });
-    });
-
-    it('should support query params in GET requests', async () => {
-        const response = await axiosCompatible.get('https://api.example.com/data', { params: { foo: 'bar', baz: 1 } });
-        expect(response.status).toBe(200);
-        expect(response.data).toEqual({ message: 'GET success' });
     });
 });

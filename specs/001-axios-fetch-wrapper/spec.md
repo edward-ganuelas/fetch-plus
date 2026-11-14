@@ -18,6 +18,8 @@
 - Q: Since the package currently exports both ESM and CommonJS and the constitution requires equivalent behavior, should browser-only support keep the CommonJS build for browser bundlers without claiming Node.js support, or remove that export and amend the constitution? → A: Keep ESM and CommonJS exports; support browser runtimes only.
 - Q: Can an interceptor rejection handler recover a failure? → A: Yes; an
   explicit rejection handler can return a fallback and continue the chain.
+- Q: What data value should an empty response body produce? → A: The empty
+  string (`''`) for every empty body, including HEAD and 204 responses.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -51,6 +53,9 @@ response data.
    **When** it uses the ESM entry point or bundles the CommonJS entry point,
    **Then** both expose equivalent supported behavior; Node.js runtime support
    is not claimed.
+6. **Given** an empty response body, including a HEAD or 204 response,
+   **When** the response is returned, **Then** its data is the empty string
+   (`''`).
 
 ---
 
@@ -141,8 +146,9 @@ contacting an external service.
 
 - A URL that already contains query values receives additional values without
   losing the existing query.
-- Empty response bodies are returned as empty data; valid JSON responses are
-  parsed, and non-JSON responses are returned as text.
+- Empty response bodies, including HEAD and 204 responses, are returned as
+  the empty string (`''`); valid JSON responses are parsed, and non-JSON
+  responses are returned as text.
 - Malformed JSON response text remains available to the caller rather than
   being silently replaced with a successful empty value.
 - A request that is cancelled before it is sent rejects without reporting an
@@ -183,8 +189,9 @@ contacting an external service.
 - **FR-007**: The client MUST serialize JSON-compatible object request data as
   JSON and set an application/json content type only when the caller has not
   supplied one. It MUST return valid JSON response data as parsed values,
-  non-JSON response data as text, and malformed JSON response data as its
-  original text.
+  non-JSON response data as text, malformed JSON response data as its
+  original text, and every empty response body as the empty string (`''`),
+  including HEAD and 204 responses.
 - **FR-008**: The client MUST return response data, status, status text, and
   headers for successful requests. By default, it MUST resolve 2xx responses
   and reject other HTTP responses with an error exposing the response status,
