@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 import { setupServer } from 'msw/node';
 import { http, HttpResponse } from 'msw';
 import axiosCompatible from './main';
@@ -30,7 +30,11 @@ const server = setupServer(
 );
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
-afterEach(() => server.resetHandlers());
+afterEach(() => {
+    server.resetHandlers();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+});
 afterAll(() => server.close());
 
 describe('US1', () => {
@@ -146,8 +150,8 @@ describe('US1', () => {
     });
 
     it('rejects unsupported options instead of ignoring them', async () => {
-        await expect(axiosCompatible.get('https://api.example.com/data', { params: { x: 1 } }))
-            .rejects.toThrow('Unsupported request option: params');
+        await expect(axiosCompatible.get('https://api.example.com/data', { unsupported: true }))
+            .rejects.toThrow('Unsupported request option: unsupported');
     });
 
     it.each([
@@ -161,6 +165,223 @@ describe('US1', () => {
 });
 
 describe('US2', () => {
+    function inspectRequests() {
+        const inspect = ({ request }) => HttpResponse.json({
+            url: request.url,
+            headers: Object.fromEntries(request.headers),
+            credentials: request.credentials,
+        });
+        server.use(
+            http.all('https://api.example.com/*', inspect),
+            http.all('https://other.example.com/*', inspect),
+        );
+    }
+
+    function mockPendingFetch() {
+        return vi.spyOn(globalThis, 'fetch').mockImplementation((_url, init) =>
+            new Promise((_resolve, reject) => {
+                if (init.signal.aborted) {
+                    reject(new DOMException('Aborted', 'AbortError'));
+                } else {
+                    init.signal.addEventListener('abort', () =>
+                        reject(new DOMException('Aborted', 'AbortError')), { once: true });
+                }
+            }));
+    }
+
+    it('isolates client defaults and applies request overrides without mutating them', async () => {
+        inspectRequests();
+        const headers = { 'X-Token': 'first', 'X-Shared': 'default' };
+        const first = axiosCompatible.create({ baseURL: 'https://api.example.com/v1/', headers });
+        const second = axiosCompatible.create({ baseURL: 'https://other.example.com/v2', headers: { 'X-Token': 'second' } });
+        headers['X-Token'] = 'changed outside';
+
+        const override = await first('/items', { headers: { 'x-shared': 'override' } });
+        const original = await first({ url: '/items' });
+        const other = await second.get('items');
+        expect(override.data.url).toBe('https://api.example.com/v1/items');
+        expect(override.data.headers['x-shared']).toBe('override');
+        expect(override.data.headers['x-token']).toBe('first');
+        expect(original.data.headers['x-shared']).toBe('default');
+        expect(original.data.headers['x-token']).toBe('first');
+        expect(other.data.url).toBe('https://other.example.com/v2/items');
+        expect(other.data.headers['x-token']).toBe('second');
+    });
+
+    it('creates isolated child clients with inherited and overridden defaults', async () => {
+        inspectRequests();
+        const parent = axiosCompatible.create({ baseURL: 'https://api.example.com/v1', headers: { 'X-Parent': 'yes' } });
+        const child = parent.create({ headers: { 'X-Child': 'yes' } });
+        child.defaults.headers.set('X-Parent', 'changed');
+        const childResponse = await child.get('/items');
+        const parentResponse = await parent.get('/items');
+        expect(childResponse.data.headers['x-parent']).toBe('changed');
+        expect(childResponse.data.headers['x-child']).toBe('yes');
+        expect(parentResponse.data.headers['x-parent']).toBe('yes');
+        expect(parentResponse.data.headers['x-child']).toBeUndefined();
+    });
+
+    it('isolates query defaults and applies request overrides without mutating them', async () => {
+        inspectRequests();
+        const params = { tag: ['one', 'two'] };
+        const parent = axiosCompatible.create({ baseURL: 'https://api.example.com', params });
+        const child = parent.create();
+        params.tag.push('outside');
+        child.defaults.params.tag.push('child');
+        expect(new URL((await parent.get('/items')).data.url).searchParams.getAll('tag')).toEqual(['one', 'two']);
+        expect(new URL((await child.get('/items')).data.url).searchParams.getAll('tag')).toEqual(['one', 'two', 'child']);
+        expect(new URL((await parent.get('/items', { params: { tag: 'override' } })).data.url).searchParams.getAll('tag'))
+            .toEqual(['override']);
+    });
+
+    it('applies configured methods and request overrides without reusing request data', async () => {
+        const client = axiosCompatible.create({ baseURL: 'https://api.example.com', method: 'post' });
+        const first = await client({ url: '/echo', data: { value: 1 } });
+        const second = await client({ url: '/echo', method: 'put' });
+        expect(first.data.method).toBe('POST');
+        expect(first.data.body).toBe('{"value":1}');
+        expect(second.data.method).toBe('PUT');
+        expect(second.data.body).toBe('');
+        expect(client.defaults.method).toBe('post');
+    });
+
+    it('rejects request data as a client default rather than reusing it', () => {
+        expect(() => axiosCompatible.create({ data: { reused: true } }))
+            .toThrow('Unsupported client default: data');
+    });
+
+    it('joins base paths, bypasses the base for absolute URLs and serializes query values', async () => {
+        inspectRequests();
+        const client = axiosCompatible.create({ baseURL: 'https://api.example.com/v1/' });
+        const response = await client.get('/items?existing=one#section', {
+            params: { name: 'a b', items: ['one', 'two', null], zero: 0, flag: false, absent: null, missing: undefined },
+        });
+        const url = new URL(response.data.url);
+        expect(url.pathname).toBe('/v1/items');
+        expect(url.searchParams.get('existing')).toBe('one');
+        expect(url.searchParams.get('name')).toBe('a b');
+        expect(url.searchParams.getAll('items')).toEqual(['one', 'two']);
+        expect(url.searchParams.get('zero')).toBe('0');
+        expect(url.searchParams.get('flag')).toBe('false');
+        expect(url.searchParams.has('absent')).toBe(false);
+        expect(url.searchParams.has('missing')).toBe(false);
+        const absolute = await client.get('https://other.example.com/absolute');
+        expect(absolute.data.url).toBe('https://other.example.com/absolute');
+    });
+
+    it('preserves fragments while adding query parameters', async () => {
+        const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('ok'));
+        await axiosCompatible.get('https://api.example.com/items?existing=one#section', { params: { flag: false } });
+        expect(fetchSpy.mock.calls[0][0]).toBe('https://api.example.com/items?existing=one&flag=false#section');
+    });
+
+    it('uses the Fetch same-origin credential default unless explicitly opted in', async () => {
+        inspectRequests();
+        const client = axiosCompatible.create({ baseURL: 'https://api.example.com', withCredentials: true });
+        expect((await axiosCompatible.get('https://api.example.com/data')).data.credentials).toBe('same-origin');
+        expect((await client.get('/data')).data.credentials).toBe('include');
+        expect((await client.get('/data', { withCredentials: false })).data.credentials).toBe('same-origin');
+    });
+
+    it('rejects an already-aborted signal without sending a request', async () => {
+        const fetchSpy = vi.spyOn(globalThis, 'fetch');
+        const controller = new AbortController();
+        controller.abort();
+        await expect(axiosCompatible.get('https://api.example.com/data', { signal: controller.signal }))
+            .rejects.toMatchObject({ kind: 'canceled' });
+        expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('distinguishes caller cancellation and removes its abort listener', async () => {
+        mockPendingFetch();
+        const controller = new AbortController();
+        const removeListener = vi.spyOn(controller.signal, 'removeEventListener');
+        const pending = axiosCompatible.get('https://api.example.com/data', { signal: controller.signal, timeout: 1000 });
+        const assertion = expect(pending).rejects.toMatchObject({ kind: 'canceled' });
+        controller.abort();
+        await assertion;
+        expect(removeListener).toHaveBeenCalledWith('abort', expect.any(Function));
+    });
+
+    it('cleans up timers and listeners on success and transport failure', async () => {
+        vi.useFakeTimers();
+        const controller = new AbortController();
+        const removeListener = vi.spyOn(controller.signal, 'removeEventListener');
+        const fetchSpy = vi.spyOn(globalThis, 'fetch')
+            .mockResolvedValueOnce(new Response('ok'))
+            .mockRejectedValueOnce(new TypeError('network failure'));
+        await axiosCompatible.get('https://api.example.com/data', { signal: controller.signal, timeout: 100 });
+        expect(vi.getTimerCount()).toBe(0);
+        await expect(axiosCompatible.get('https://api.example.com/data', { signal: controller.signal, timeout: 100 }))
+            .rejects.toThrow('network failure');
+        expect(vi.getTimerCount()).toBe(0);
+        expect(removeListener).toHaveBeenCalledTimes(2);
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps the timeout active while reading the response body', async () => {
+        vi.useFakeTimers();
+        vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => new Response(new ReadableStream({
+            start(controller) {
+                init.signal.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError')));
+            },
+        })));
+        const assertion = expect(axiosCompatible.get('https://api.example.com/data', { timeout: 10 }))
+            .rejects.toMatchObject({ name: 'FetchPlusError', kind: 'timeout' });
+        await vi.advanceTimersByTimeAsync(10);
+        await assertion;
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('applies timeout defaults, request overrides, and zero to disable timeout', async () => {
+        vi.useFakeTimers();
+        mockPendingFetch();
+        const client = axiosCompatible.create({ timeout: 10 });
+        const defaultAssertion = expect(client.get('https://api.example.com/data'))
+            .rejects.toMatchObject({ kind: 'timeout' });
+        await vi.advanceTimersByTimeAsync(10);
+        await defaultAssertion;
+
+        const overrideAssertion = expect(client.get('https://api.example.com/data', { timeout: 20 }))
+            .rejects.toMatchObject({ kind: 'timeout' });
+        await vi.advanceTimersByTimeAsync(19);
+        expect(vi.getTimerCount()).toBe(1);
+        await vi.advanceTimersByTimeAsync(1);
+        await overrideAssertion;
+
+        const controller = new AbortController();
+        const disabled = client.get('https://api.example.com/data', { timeout: 0, signal: controller.signal });
+        const disabledAssertion = expect(disabled).rejects.toMatchObject({ kind: 'canceled' });
+        await vi.advanceTimersByTimeAsync(100);
+        expect(vi.getTimerCount()).toBe(0);
+        controller.abort();
+        await disabledAssertion;
+    });
+
+    it('rejects invalid timeouts and handles large finite timeouts without overflow', async () => {
+        for (const timeout of [-1, Infinity, NaN, '10']) {
+            await expect(axiosCompatible.get('https://api.example.com/data', { timeout })).rejects.toThrow();
+        }
+        vi.useFakeTimers();
+        mockPendingFetch();
+        const controller = new AbortController();
+        const pending = axiosCompatible.get('https://api.example.com/data', {
+            timeout: 2147483648,
+            signal: controller.signal,
+        });
+        const assertion = expect(pending).rejects.toMatchObject({ kind: 'canceled' });
+        await vi.advanceTimersByTimeAsync(1);
+        controller.abort();
+        await assertion;
+
+        const timeoutAssertion = expect(axiosCompatible.get('https://api.example.com/data', { timeout: 2147483648 }))
+            .rejects.toMatchObject({ kind: 'timeout' });
+        await vi.advanceTimersByTimeAsync(2147483647);
+        expect(vi.getTimerCount()).toBe(1);
+        await vi.advanceTimersByTimeAsync(1);
+        await timeoutAssertion;
+    });
+
     it('supports custom config', async () => {
         const response = await axiosCompatible.get('https://api.example.com/data', { headers: { 'X-Test': 'yes' } });
         expect(response.status).toBe(200);
