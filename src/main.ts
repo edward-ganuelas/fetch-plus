@@ -9,6 +9,10 @@ interface FetchPlus {
     <T = unknown>(url: string, options?: RequestOptions): Promise<FetchPlusResponse<T>>;
     <T = unknown>(config: RequestConfig): Promise<FetchPlusResponse<T>>;
     readonly defaults: ResolvedClientDefaults;
+    readonly interceptors: {
+        readonly request: Pick<FetchPlusClient['interceptors']['request'], 'use' | 'eject'>;
+        readonly response: Pick<FetchPlusClient['interceptors']['response'], 'use' | 'eject'>;
+    };
     create(defaults?: ClientDefaults): FetchPlus;
     get: FetchPlusClient['get'];
     delete: FetchPlusClient['delete'];
@@ -30,6 +34,7 @@ function createClient(defaults: ClientDefaults = {}): FetchPlus {
 
     return Object.assign(request, {
         defaults: client.defaults,
+        interceptors: client.interceptors,
         create: (options: ClientDefaults = {}) => createClient(mergeDefaults(client.defaults, options)),
         get: client.get.bind(client),
         delete: client.delete.bind(client),

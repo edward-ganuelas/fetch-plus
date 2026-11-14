@@ -191,3 +191,10 @@ claiming full compatibility with every Axios error code or helper.
 
 **References**: [MDN Fetch](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch),
 [Axios error handling](https://axios.rest/pages/advanced/error-handling)
+
+## Clean-Room Review
+
+The implementation was independently authored for this project using the
+public behavior references above, without Axios source or non-public
+implementation materials. Supported behavior and explicit exclusions are
+documented in the public client contract and the repository README.

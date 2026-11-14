@@ -178,12 +178,12 @@ describe('US2', () => {
     }
 
     function mockPendingFetch() {
-        return vi.spyOn(globalThis, 'fetch').mockImplementation((_url, init) =>
+        return vi.spyOn(globalThis, 'fetch').mockImplementation((request) =>
             new Promise((_resolve, reject) => {
-                if (init.signal.aborted) {
+                if (request.signal.aborted) {
                     reject(new DOMException('Aborted', 'AbortError'));
                 } else {
-                    init.signal.addEventListener('abort', () =>
+                    request.signal.addEventListener('abort', () =>
                         reject(new DOMException('Aborted', 'AbortError')), { once: true });
                 }
             }));
@@ -272,7 +272,7 @@ describe('US2', () => {
     it('preserves fragments while adding query parameters', async () => {
         const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('ok'));
         await axiosCompatible.get('https://api.example.com/items?existing=one#section', { params: { flag: false } });
-        expect(fetchSpy.mock.calls[0][0]).toBe('https://api.example.com/items?existing=one&flag=false#section');
+        expect(fetchSpy.mock.calls[0][0].url).toBe('https://api.example.com/items?existing=one&flag=false#section');
     });
 
     it('preserves the original query bytes when appending or omitting parameters', async () => {
@@ -281,7 +281,7 @@ describe('US2', () => {
         await axiosCompatible.get(url, { params: { ignored: null } });
         await axiosCompatible.get(url, { params: { added: 'a b' } });
         await axiosCompatible.get('https://api.example.com/items?#section', { params: { added: 1 } });
-        expect(fetchSpy.mock.calls.map(([requestUrl]) => requestUrl)).toEqual([
+        expect(fetchSpy.mock.calls.map(([request]) => request.url)).toEqual([
             url,
             'https://api.example.com/items?token=%E9&name=a%20b&added=a+b#section',
             'https://api.example.com/items?added=1#section',
@@ -334,9 +334,9 @@ describe('US2', () => {
 
     it('keeps the timeout active while reading the response body', async () => {
         vi.useFakeTimers();
-        vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => new Response(new ReadableStream({
+        vi.spyOn(globalThis, 'fetch').mockImplementation(async (request) => new Response(new ReadableStream({
             start(controller) {
-                init.signal.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError')));
+                request.signal.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError')));
             },
         })));
         const assertion = expect(axiosCompatible.get('https://api.example.com/data', { timeout: 10 }))
@@ -411,8 +411,194 @@ describe('US2', () => {
 describe('US3', () => {
     it('exposes an HTTP error response', async () => {
         await expect(axiosCompatible.get('https://api.example.com/error')).rejects.toMatchObject({
-            response: { status: 404, data: { error: 'Not found' } },
+            kind: 'http',
+            response: { status: 404, data: { error: 'Not found' }, headers: expect.any(Headers) },
         });
+    });
+
+    it('returns successful responses and preserves empty HTTP error bodies', async () => {
+        server.use(
+            http.get('https://api.example.com/empty-error', () =>
+                new HttpResponse(null, { status: 503, headers: { 'X-Reason': 'unavailable' } })),
+        );
+        expect((await axiosCompatible.get('https://api.example.com/empty')).status).toBe(204);
+        await expect(axiosCompatible.get('https://api.example.com/empty-error')).rejects.toMatchObject({
+            kind: 'http',
+            response: { status: 503, data: '', headers: expect.any(Headers) },
+        });
+        const error = await axiosCompatible.get('https://api.example.com/empty-error').catch((value) => value);
+        expect(error.response.headers.get('x-reason')).toBe('unavailable');
+    });
+
+    it('applies the 2xx policy at the status boundaries', async () => {
+        vi.spyOn(globalThis, 'fetch')
+            .mockImplementationOnce(async () => new Response('ok', { status: 299 }))
+            .mockImplementationOnce(async () => new Response('redirect', { status: 300 }));
+        await expect(axiosCompatible.get('https://api.example.com/data')).resolves.toMatchObject({ status: 299 });
+        await expect(axiosCompatible.get('https://api.example.com/data')).rejects.toMatchObject({
+            kind: 'http', response: { status: 300, data: 'redirect' },
+        });
+    });
+
+    it('classifies transport failures without fabricating a response', async () => {
+        const cause = new TypeError('network failed');
+        vi.spyOn(globalThis, 'fetch').mockRejectedValue(cause);
+        const error = await axiosCompatible.get('https://api.example.com/data').catch((value) => value);
+        expect(error).toMatchObject({ kind: 'network', cause });
+        expect(error).not.toHaveProperty('response');
+    });
+
+    it('classifies response-body transport failures without fabricating a response', async () => {
+        const cause = new TypeError('body stream failed');
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(new ReadableStream({
+            start(controller) { controller.error(cause); },
+        })));
+        const error = await axiosCompatible.get('https://api.example.com/data').catch((value) => value);
+        expect(error).toMatchObject({ kind: 'network', cause });
+        expect(error).not.toHaveProperty('response');
+    });
+
+    it('does not classify invalid configuration or interceptor failures as network errors', async () => {
+        const client = axiosCompatible.create();
+        const fetchSpy = vi.spyOn(globalThis, 'fetch');
+        await expect(client.get('https://api.example.com/data', { timeout: -1 }))
+            .rejects.toThrow('Timeout must be a non-negative finite number');
+        expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('preserves native request-validation errors and cleans up cancellation resources', async () => {
+        vi.useFakeTimers();
+        const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('network failure'));
+        const controller = new AbortController();
+        const removeListener = vi.spyOn(controller.signal, 'removeEventListener');
+        const options = { timeout: 100, signal: controller.signal };
+        const requests = [
+            { url: 'https://api.example.com/data', method: 'GET', data: { value: 1 } },
+            { url: 'https://api.example.com/data', method: 'HEAD', data: 'body' },
+            { url: 'http://[', method: 'GET' },
+            { url: 'https://api.example.com/data', method: 'TRACE' },
+        ];
+        for (const request of requests) {
+            const error = await axiosCompatible({ ...request, ...options }).catch((value) => value);
+            expect(error).toBeInstanceOf(TypeError);
+            expect(error).not.toHaveProperty('kind');
+            expect(vi.getTimerCount()).toBe(0);
+        }
+        expect(fetchSpy).not.toHaveBeenCalled();
+        expect(removeListener).toHaveBeenCalledTimes(requests.length);
+    });
+
+    it('captures defaults when a request starts without request interceptors', async () => {
+        const client = axiosCompatible.create({ headers: { 'X-Test': 'before' } });
+        const pending = client.get('https://api.example.com/echo');
+        client.defaults.headers.set('X-Test', 'after');
+        expect((await pending).headers.get('x-test-received')).toBe('before');
+    });
+
+    it('captures query defaults before asynchronous request interceptors run', async () => {
+        const client = axiosCompatible.create({ params: { tag: ['before'] } });
+        const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('ok'));
+        client.interceptors.request.use(async (config) => config);
+        const pending = client.get('https://api.example.com/data');
+        client.defaults.params.tag.push('after');
+        await pending;
+        expect(fetchSpy.mock.calls[0][0].url).toBe('https://api.example.com/data?tag=before');
+    });
+
+    it('runs request interceptors in reverse and response interceptors in registration order', async () => {
+        const client = axiosCompatible.create();
+        const order = [];
+        client.interceptors.request.use((config) => {
+            order.push('request 1');
+            config.headers.set('X-Test', 'intercepted');
+            return config;
+        });
+        client.interceptors.request.use(async (config) => {
+            order.push('request 2');
+            return config;
+        });
+        client.interceptors.response.use((response) => {
+            order.push('response 1');
+            response.data.first = true;
+            return response;
+        });
+        client.interceptors.response.use((response) => {
+            order.push('response 2');
+            response.data.second = response.data.first;
+            return response;
+        });
+        const response = await client.get('https://api.example.com/echo');
+        expect(order).toEqual(['request 2', 'request 1', 'response 1', 'response 2']);
+        expect(response.headers.get('x-test-received')).toBe('intercepted');
+        expect(response.data.second).toBe(true);
+    });
+
+    it('ejects handlers and keeps client interceptor state isolated', async () => {
+        const first = axiosCompatible.create();
+        const second = first.create();
+        const firstHandler = vi.fn((response) => response);
+        const secondHandler = vi.fn((response) => response);
+        const id = first.interceptors.response.use(firstHandler);
+        const requestHandler = vi.fn((config) => config);
+        const requestId = first.interceptors.request.use(requestHandler);
+        second.interceptors.response.use(secondHandler);
+        second.interceptors.response.eject(id);
+        first.interceptors.response.eject(id);
+        first.interceptors.request.eject(requestId);
+        first.interceptors.response.eject(id);
+        first.interceptors.response.eject(-1);
+        await first.get('https://api.example.com/data');
+        await second.get('https://api.example.com/data');
+        expect(firstHandler).not.toHaveBeenCalled();
+        expect(requestHandler).not.toHaveBeenCalled();
+        expect(secondHandler).toHaveBeenCalledOnce();
+    });
+
+    it('rejects invalid interceptor handlers rather than silently ignoring them', () => {
+        const client = axiosCompatible.create();
+        expect(() => client.interceptors.request.use(undefined)).toThrow('Interceptor handlers must be functions');
+        expect(() => client.interceptors.response.use((response) => response, null))
+            .toThrow('Interceptor handlers must be functions');
+    });
+
+    it('propagates interceptor failures and permits later response rejection handlers to recover', async () => {
+        const client = axiosCompatible.create();
+        const failure = new Error('interceptor failure');
+        client.interceptors.response.use(() => { throw failure; });
+        await expect(client.get('https://api.example.com/data')).rejects.toBe(failure);
+        client.interceptors.response.use((response) => response, (error) => ({
+            data: error.message, status: 200, statusText: 'Recovered', headers: new Headers(),
+        }));
+        await expect(client.get('https://api.example.com/data')).resolves.toMatchObject({
+            data: 'interceptor failure', statusText: 'Recovered',
+        });
+    });
+
+    it('routes HTTP failures through response rejection handlers for explicit recovery', async () => {
+        const client = axiosCompatible.create();
+        client.interceptors.response.use((response) => response, (error) => ({
+            data: error.response.data, status: error.response.status, statusText: 'Recovered', headers: error.response.headers,
+        }));
+        await expect(client.get('https://api.example.com/error')).resolves.toMatchObject({
+            data: { error: 'Not found' }, status: 404, statusText: 'Recovered',
+        });
+    });
+
+    it('allows request rejection handlers to recover and sends unhandled failures to response handlers', async () => {
+        const client = axiosCompatible.create();
+        const failure = new Error('request interceptor failure');
+        client.interceptors.request.use((config) => config, () => ({ url: 'https://api.example.com/data' }));
+        client.interceptors.request.use(() => { throw failure; });
+        await expect(client.get('https://api.example.com/unused')).resolves.toMatchObject({
+            data: { message: 'GET success' },
+        });
+
+        const failing = axiosCompatible.create();
+        failing.interceptors.request.use(() => { throw failure; });
+        const responseFailure = vi.fn((error) => { throw error; });
+        failing.interceptors.response.use((response) => response, responseFailure);
+        await expect(failing.get('https://api.example.com/data')).rejects.toBe(failure);
+        expect(responseFailure).toHaveBeenCalledWith(failure);
     });
 
     it('supports response interceptors', async () => {

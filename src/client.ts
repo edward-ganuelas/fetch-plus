@@ -1,20 +1,47 @@
 import { AxiosLike } from './axios-like';
 import { FetchPlusError } from './errors';
+import { InterceptorManager } from './interceptors';
 import { buildUrl, createAbortControl, mergeDefaults, mergeRequest, serializeBody } from './request';
 import { readResponse } from './response';
 import type { ClientDefaults, FetchPlusResponse, RequestConfig, RequestOptions, ResolvedClientDefaults } from './types';
 
 export class FetchPlusClient extends AxiosLike {
     readonly defaults: ResolvedClientDefaults;
+    readonly interceptors = {
+        request: new InterceptorManager<RequestConfig>(),
+        response: new InterceptorManager<FetchPlusResponse>(),
+    };
 
     constructor(defaults: ClientDefaults = {}) {
         super();
         this.defaults = mergeDefaults({}, defaults);
     }
 
-    async request<T = unknown>(input: string | RequestConfig, options: RequestOptions = {}): Promise<FetchPlusResponse<T>> {
-        const request = typeof input === 'string' ? { ...options, url: input } : input;
-        const config = mergeRequest(this.defaults, request);
+    request<T = unknown>(input: string | RequestConfig, options: RequestOptions = {}): Promise<FetchPlusResponse<T>> {
+        const requestHandlers = this.interceptors.request.snapshot().reverse();
+        const responseHandlers = this.interceptors.response.snapshot();
+        const execute = (initial: Promise<RequestConfig>): Promise<FetchPlusResponse> => {
+            let config = initial;
+            for (const handler of requestHandlers) {
+                config = config.then(handler.fulfilled, handler.rejected);
+            }
+            return config.then((value) => this.dispatch<T>(value));
+        };
+        let result: Promise<FetchPlusResponse>;
+        try {
+            const request = typeof input === 'string' ? { ...options, url: input } : input;
+            const config = mergeRequest(this.defaults, request);
+            result = requestHandlers.length ? execute(Promise.resolve(config)) : this.dispatch<T>(config);
+        } catch (error) {
+            result = execute(Promise.reject(error));
+        }
+        for (const handler of responseHandlers) {
+            result = result.then(handler.fulfilled, handler.rejected);
+        }
+        return result as Promise<FetchPlusResponse<T>>;
+    }
+
+    private async dispatch<T>(config: RequestConfig): Promise<FetchPlusResponse<T>> {
         const headers = new Headers(config.headers);
         const body = serializeBody(config.data, headers);
         const url = buildUrl(config.url, config.baseURL, config.params);
@@ -36,13 +63,16 @@ export class FetchPlusClient extends AxiosLike {
         try {
             const initialKind = control.kind();
             if (initialKind) throw new FetchPlusError(initialKind, { cause: config.signal?.reason });
-            const response = await fetch(url, init);
-            if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
-            return await readResponse<T>(response);
-        } catch (error) {
-            const kind = control.kind();
-            if (kind && !(error instanceof FetchPlusError)) throw new FetchPlusError(kind, { cause: error });
-            throw error;
+            const request = new Request(url, init);
+            try {
+                const response = await fetch(request);
+                return await readResponse<T>(response);
+            } catch (error) {
+                const kind = control.kind();
+                if (kind && !(error instanceof FetchPlusError)) throw new FetchPlusError(kind, { cause: error });
+                if (error instanceof FetchPlusError) throw error;
+                throw new FetchPlusError('network', { cause: error });
+            }
         } finally {
             control.cleanup();
         }

@@ -105,13 +105,13 @@ one, and interceptor ordering, removal, and rejection behavior are correct.
 
 Put all US3 tests in the `US3` group in `src/fetch-plus.test.js`.
 
-- [ ] T021 [US3] Add tests for default 2xx handling, HTTP error response fields including `''` data for an empty error body, and network failures without a fabricated response in `src/fetch-plus.test.js`.
-- [ ] T022 [US3] Add tests under the `US3` group in `src/fetch-plus.test.js` for interceptor order, removal, per-client isolation, unhandled failures, and explicit recovery of HTTP and interceptor failures by later rejection handlers.
-- [ ] T023 [P] [US3] Implement typed request errors in `src/errors.ts` for `http`, `network`, `timeout`, and `canceled` kinds; only HTTP errors carry a `response`.
-- [ ] T024 [P] [US3] Implement the `InterceptorManager` class in `src/interceptors.ts` with registration, opaque IDs, ejection, and no-op behavior for unknown IDs.
-- [ ] T025 [US3] Enforce the default 2xx status policy and construct HTTP errors with `response.status`, `response.data`, and `response.headers` in `src/response.ts`.
-- [ ] T026 [US3] Classify rejected Fetch operations as network, timeout, or cancellation errors without attaching an HTTP response in `src/client.ts`.
-- [ ] T027 [US3] Connect per-client interceptor managers to the request pipeline in `src/client.ts`, running request interceptors in reverse and response interceptors in registration order, propagating unhandled failures and allowing explicit rejection-handler recovery.
+- [X] T021 [US3] Add tests for default 2xx handling, HTTP error response fields including `''` data for an empty error body, and network failures without a fabricated response in `src/fetch-plus.test.js`.
+- [X] T022 [US3] Add tests under the `US3` group in `src/fetch-plus.test.js` for interceptor order, removal, per-client isolation, unhandled failures, and explicit recovery of HTTP and interceptor failures by later rejection handlers.
+- [X] T023 [P] [US3] Implement typed request errors in `src/errors.ts` for `http`, `network`, `timeout`, and `canceled` kinds; only HTTP errors carry a `response`.
+- [X] T024 [P] [US3] Implement the `InterceptorManager` class in `src/interceptors.ts` with registration, opaque IDs, ejection, and no-op behavior for unknown IDs.
+- [X] T025 [US3] Enforce the default 2xx status policy and construct HTTP errors with `response.status`, `response.data`, and `response.headers` in `src/response.ts`.
+- [X] T026 [US3] Classify rejected Fetch operations as network, timeout, or cancellation errors without attaching an HTTP response in `src/client.ts`.
+- [X] T027 [US3] Connect per-client interceptor managers to the request pipeline in `src/client.ts`, running request interceptors in reverse and response interceptors in registration order, propagating unhandled failures and allowing explicit rejection-handler recovery.
 
 **Checkpoint**: The complete request lifecycle and all failure/interceptor
 scenarios are independently verifiable with controlled handlers.
@@ -121,11 +121,11 @@ scenarios are independently verifiable with controlled handlers.
 **Purpose**: Document browser-only support, verify module outputs, and run the
 complete validation workflow.
 
-- [ ] T028 [P] Document supported browser capabilities, public usage, compatibility boundaries, and the absence of Node.js runtime support in `README.md`.
-- [ ] T029 [P] Configure explicit ESM and CommonJS-compatible browser-bundler outputs in `vite.config.ts` and verify the corresponding paths in `package.json`.
-- [ ] T030 Update `specs/001-axios-fetch-wrapper/quickstart.md` with runnable browser smoke steps importing the built ESM entry and bundling the built CommonJS entry, issuing the same controlled request and comparing response data, status, status text, and headers; do not use Node.js execution as a runtime support test.
-- [ ] T031 Run `npm test`, `npm run build`, and the browser smoke procedure in `specs/001-axios-fetch-wrapper/quickstart.md`; verify both entry points return matching data, status, status text, and headers and generated `dist/fetch-plus.js` and `dist/fetch-plus.umd.cjs` match `package.json`.
-- [ ] T032 Review implementation files in `src/` and compatibility claims in `README.md` against the public references in `specs/001-axios-fetch-wrapper/research.md`; record the review outcome, confirming independent authorship, no non-public materials, and documented supported and excluded behavior.
+- [X] T028 [P] Document supported browser capabilities, public usage, compatibility boundaries, and the absence of Node.js runtime support in `README.md`.
+- [X] T029 [P] Configure explicit ESM and CommonJS-compatible browser-bundler outputs in `vite.config.ts` and verify the corresponding paths in `package.json`.
+- [X] T030 Update `specs/001-axios-fetch-wrapper/quickstart.md` with runnable browser smoke steps importing the built ESM entry and bundling the built CommonJS entry, issuing the same controlled request and comparing response data, status, status text, and headers; do not use Node.js execution as a runtime support test.
+- [X] T031 Run `npm test`, `npm run build`, and the browser smoke procedure in `specs/001-axios-fetch-wrapper/quickstart.md`; verify both entry points return matching data, status, status text, and headers and generated `dist/fetch-plus.js` and `dist/fetch-plus.umd.cjs` match `package.json`.
+- [X] T032 Review implementation files in `src/` and compatibility claims in `README.md` against the public references in `specs/001-axios-fetch-wrapper/research.md`; record the review outcome, confirming independent authorship, no non-public materials, and documented supported and excluded behavior.
 
 ## Dependencies & Execution Order
 
