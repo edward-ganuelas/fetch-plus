@@ -1,6 +1,6 @@
 {
   "name": "@eightrayedsun/hila",
-  "version": "1.0.0.alpha.1",
+  "version": "1.0.0-alpha.1",
   "type": "module",
   "main": "dist/fetch-plus.umd.cjs",
   "module": "dist/fetch-plus.js",
