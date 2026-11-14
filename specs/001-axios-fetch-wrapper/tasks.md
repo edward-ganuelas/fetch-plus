@@ -78,15 +78,15 @@ acceptance criteria.
 
 Put all US2 tests in the `US2` group in `src/fetch-plus.test.js`.
 
-- [ ] T012 [US2] Add tests for creating two clients, isolating their defaults, and applying request-level overrides in `src/fetch-plus.test.js`.
-- [ ] T013 [P] [US2] Add client creation and per-instance default storage to `FetchPlusClient` in `src/client.ts`, exposing the configured-client factory from `src/main.ts`.
-- [ ] T014 [P] [US2] Extend request/default configuration types in `src/types.ts` and implement precedence in `src/request.ts` (built-in, client, then request); merge headers case-insensitively and never inherit request `data`.
-- [ ] T015 [US2] Add tests for relative and absolute `baseURL` handling and query values in `src/fetch-plus.test.js`.
-- [ ] T016 [US2] Implement base-URL joining and query serialization in `src/request.ts`: join relative paths with one slash, leave absolute URLs unchanged, preserve existing query values, repeat array keys, preserve false and zero, and omit null and undefined.
-- [ ] T017 [US2] Add tests for omitted cross-origin credentials by default and explicit credential opt-in in `src/fetch-plus.test.js`.
-- [ ] T018 [US2] Map `withCredentials: true` to Fetch's `credentials: "include"` and keep the default cross-origin behavior off in `src/request.ts`, subject to browser and server policy.
-- [ ] T019 [US2] Add tests for client and request timeouts, zero timeout, request-over-client precedence, and caller-signal cancellation in `src/fetch-plus.test.js`.
-- [ ] T020 [US2] Implement timeout and caller-signal composition in `src/request.ts` and timeout/cancellation error kinds in `src/errors.ts`; validate non-negative finite timeout, `0` disables, and cleanup when requests settle.
+- [X] T012 [US2] Add tests for creating two clients, isolating their defaults, and applying request-level overrides in `src/fetch-plus.test.js`.
+- [X] T013 [P] [US2] Add client creation and per-instance default storage to `FetchPlusClient` in `src/client.ts`, exposing the configured-client factory from `src/main.ts`.
+- [X] T014 [P] [US2] Extend request/default configuration types in `src/types.ts` and implement precedence in `src/request.ts` (built-in, client, then request); merge headers case-insensitively and never inherit request `data`.
+- [X] T015 [US2] Add tests for relative and absolute `baseURL` handling and query values in `src/fetch-plus.test.js`.
+- [X] T016 [US2] Implement base-URL joining and query serialization in `src/request.ts`: join relative paths with one slash, leave absolute URLs unchanged, preserve existing query values, repeat array keys, preserve false and zero, and omit null and undefined.
+- [X] T017 [US2] Add tests for omitted cross-origin credentials by default and explicit credential opt-in in `src/fetch-plus.test.js`.
+- [X] T018 [US2] Map `withCredentials: true` to Fetch's `credentials: "include"` and keep the default cross-origin behavior off in `src/request.ts`, subject to browser and server policy.
+- [X] T019 [US2] Add tests for client and request timeouts, zero timeout, request-over-client precedence, and caller-signal cancellation in `src/fetch-plus.test.js`.
+- [X] T020 [US2] Implement timeout and caller-signal composition in `src/request.ts` and timeout/cancellation error kinds in `src/errors.ts`; validate non-negative finite timeout, `0` disables, and cleanup when requests settle.
 
 **Checkpoint**: Two configured browser clients can be tested independently;
 defaults, URL/query handling, credential policy, timeout, and cancellation
