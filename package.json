@@ -1,6 +1,5 @@
 {
-  "name": "fetch-plus",
-  "private": true,
+  "name": "@eightrayedsun/hila",
   "version": "1.0.0.alpha.1",
   "type": "module",
   "main": "dist/fetch-plus.umd.cjs",
