@@ -124,6 +124,21 @@ export function createAbortControl(signal?: AbortSignal, timeout = 0) {
 export function serializeBody(data: unknown, headers: Headers): BodyInit | undefined {
     if (data === undefined || data === null) return undefined;
     if (typeof data === 'string') return data;
+    // Check for native body types in a realm-independent way
+    const isNativeBody = (obj: unknown): obj is Blob | FormData | URLSearchParams | ArrayBuffer | ReadableStream => {
+        return typeof obj === 'object' && obj !== null &&
+            Object.prototype.toString.call(obj).includes('FormData') ||
+            Object.prototype.toString.call(obj).includes('URLSearchParams') ||
+                Object.prototype.toString.call(obj).includes('URLSearchParams') ||
+                Array.isArray(obj) ||
+                typeof obj === 'object' && obj instanceof ArrayBuffer ||
+            // Handle cross-realm objects by checking for native body types in a realm-independent way
+            Object.prototype.toString.call(obj).includes('FormData') ||
+            Object.prototype.toString.call(obj).includes('URLSearchParams') ||
+            Array.isArray(obj) ||
+            typeof obj === 'object' && obj instanceof ArrayBuffer ||
+                (typeof ReadableStream !== 'undefined' && obj instanceof ReadableStream);
+    };
     if (data instanceof Blob || data instanceof FormData || data instanceof URLSearchParams ||
         data instanceof ArrayBuffer ||
         (typeof ReadableStream !== 'undefined' && data instanceof ReadableStream)) {
@@ -132,6 +147,8 @@ export function serializeBody(data: unknown, headers: Headers): BodyInit | undef
     if (ArrayBuffer.isView(data)) {
         return new Uint8Array(data.buffer, data.byteOffset, data.byteLength).slice();
     }
+    // Handle cross-realm objects
+    if (isNativeBody(data)) return data;
     if (typeof data !== 'object') {
         throw new TypeError('Request data must be an object or a supported Fetch body');
     }
