@@ -66,6 +66,16 @@ describe('US1', () => {
         expect(response.data).toEqual({ message: 'POST success', body: { foo: 'bar' } });
     });
 
+    it('normalizes lowercase PATCH from a config object', async () => {
+        const response = await axiosCompatible({
+            url: 'https://api.example.com/echo',
+            method: 'patch',
+            data: { foo: 'bar' },
+        });
+        expect(response.data.method).toBe('PATCH');
+        expect(response.data.body).toBe('{"foo":"bar"}');
+    });
+
     it('defaults a config-object request to GET', async () => {
         const response = await axiosCompatible({ url: 'https://api.example.com/data' });
         expect(response.data).toEqual({ message: 'GET success' });
@@ -116,6 +126,18 @@ describe('US1', () => {
         const response = await axiosCompatible.post('https://api.example.com/echo', body);
         expect(response.data.body).toBe('name=value');
         expect(response.data.contentType).toContain('application/x-www-form-urlencoded');
+    });
+
+    it('sends a readable stream body without adding a content type', async () => {
+        const body = new ReadableStream({
+            start(controller) {
+                controller.enqueue(new TextEncoder().encode('streamed body'));
+                controller.close();
+            },
+        });
+        const response = await axiosCompatible.post('https://api.example.com/echo', body);
+        expect(response.data.body).toBe('streamed body');
+        expect(response.data.contentType).toBeNull();
     });
 
     it('parses JSON media types with a structured suffix', async () => {

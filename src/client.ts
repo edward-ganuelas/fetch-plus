@@ -12,11 +12,16 @@ export class FetchPlusClient extends AxiosLike {
             }
         }
         const headers = new Headers(config.headers);
-        const response = await fetch(config.url, {
-            method: config.method ?? 'GET',
+        const body = serializeBody(config.data, headers);
+        const init: RequestInit & { duplex?: 'half' } = {
+            method: (config.method ?? 'GET').toUpperCase(),
             headers,
-            body: serializeBody(config.data, headers),
-        });
+            body,
+        };
+        if (typeof ReadableStream !== 'undefined' && body instanceof ReadableStream) {
+            init.duplex = 'half';
+        }
+        const response = await fetch(config.url, init);
         if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
         return readResponse<T>(response);
     }

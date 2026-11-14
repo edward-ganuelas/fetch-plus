@@ -19,8 +19,10 @@ the other helpers accept options after the URL. Supported options are
 `method`, `headers`, and `data`. Helper methods select their own method.
 
 JSON-compatible object bodies are serialized as JSON; Fetch body types pass
-through to the platform. Responses expose `data`, `status`, `statusText`, and
-`headers` (a `Headers` object). JSON media types are parsed when valid,
+through to the platform. ReadableStream uploads use half-duplex and require
+native browser support for streaming requests. Responses expose `data`,
+`status`, `statusText`, and `headers` (a `Headers` object). JSON media types
+are parsed when valid,
 malformed JSON remains text, and empty bodies return `''`. Non-2xx responses
 reject with an error; structured HTTP errors are not yet available.
 
