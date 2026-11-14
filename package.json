@@ -1,0 +1,35 @@
+{
+  "name": "@eightrayedsun/hila",
+  "version": "1.0.0-alpha.1",
+  "type": "module",
+  "main": "dist/fetch-plus.umd.cjs",
+  "module": "dist/fetch-plus.js",
+  "types": "dist/main.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/main.d.ts",
+      "import": "./dist/fetch-plus.js",
+      "require": "./dist/fetch-plus.umd.cjs"
+    }
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build && tsc --declaration --emitDeclarationOnly --noEmit false --allowJs false --outDir dist",
+    "test": "vitest run",
+    "preview": "vite preview",
+    "prepack": "npm test && npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.0",
+    "msw": "^2.12.10",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  }
+}
