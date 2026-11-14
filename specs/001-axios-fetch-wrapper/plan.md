@@ -106,6 +106,7 @@ specs/001-axios-fetch-wrapper/
 ```text
 src/
 ├── main.ts
+├── axios-like.ts
 ├── client.ts
 ├── request.ts
 ├── response.ts
@@ -117,7 +118,8 @@ src/
 
 **Structure Decision**: Keep the existing single-package library layout and
 `src/main.ts` as the Vite library entry point. Center the public client on a
-`FetchPlusClient` class that owns per-client defaults and interceptor
+`FetchPlusClient` class that extends the `AxiosLike` convenience-method base
+class and owns per-client defaults and interceptor
 managers; use an `InterceptorManager` class and typed error classes for
 stateful behavior. Keep URL and body serialization as small focused helpers
 where objects add no value. A thin callable facade preserves the requested

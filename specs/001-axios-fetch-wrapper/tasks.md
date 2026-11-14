@@ -28,8 +28,8 @@ implementation slices.
 **Purpose**: Make the existing test setup runnable and compatible with the
 installed test-handler API.
 
-- [ ] T001 [P] Add a `"test": "vitest run"` script to `package.json` for a stable test command.
-- [ ] T002 [P] Replace MSW v1 `rest` handlers with MSW 2 `http` and `HttpResponse` handlers in `src/fetch-plus.test.js`, preserving scenarios: group basic requests under `describe('US1', ...)`, configuration under `describe('US2', ...)`, and errors/interceptors under `describe('US3', ...)`.
+- [X] T001 [P] Add a `"test": "vitest run"` script to `package.json` for a stable test command.
+- [X] T002 [P] Replace MSW v1 `rest` handlers with MSW 2 `http` and `HttpResponse` handlers in `src/fetch-plus.test.js`, preserving scenarios: group basic requests under `describe('US1', ...)`, configuration under `describe('US2', ...)`, and errors/interceptors under `describe('US3', ...)`.
 
 ## Phase 2: Foundational
 
@@ -37,7 +37,7 @@ installed test-handler API.
 
 **Checkpoint**: Complete setup and shared types before starting user stories.
 
-- [ ] T003 Define `RequestConfig`, `HttpMethod`, response, client-default, interceptor callback, and request-error-kind types from `contracts/client-api.md` in `src/types.ts`.
+- [X] T003 Define initial US1 `RequestConfig` and `HttpMethod` types plus response, client-default, interceptor callback, and request-error-kind types in `src/types.ts`; extend configuration types for later stories.
 
 ## Phase 3: User Story 1 - Make familiar HTTP requests (Priority: P1) 🎯 MVP
 
@@ -51,14 +51,14 @@ US1 acceptance also requires the package parity check in T030 and T031.
 
 ### Tests and implementation for User Story 1
 
-- [ ] T004 [US1] Add tests under the `US1` group for URL-only invocation, config-object invocation, and default GET behavior in `src/fetch-plus.test.js`.
-- [ ] T005 [US1] Add tests under the `US1` group for GET, POST, PUT, PATCH, DELETE, HEAD, and OPTIONS helper signatures in `src/fetch-plus.test.js`.
-- [ ] T006 [P] [US1] Implement JSON-compatible request-body serialization in `src/request.ts`, preserving caller content type and setting `application/json` only when absent.
-- [ ] T007 [P] [US1] Implement one-read response conversion in `src/response.ts`, parsing valid JSON for JSON media types, preserving malformed JSON as text, and returning non-JSON text or `''` for every empty body, including HEAD and 204.
-- [ ] T008 [US1] Implement `FetchPlusClient` default-GET dispatch and successful response construction using the helpers in `src/client.ts`.
-- [ ] T009 [US1] Add GET, POST, PUT, PATCH, DELETE, HEAD, and OPTIONS methods to `FetchPlusClient` in `src/client.ts`, forwarding method, data, and request settings per `contracts/client-api.md`.
-- [ ] T010 [US1] Export the callable default-client facade and public request types from `src/main.ts`, delegating client state to `FetchPlusClient`.
-- [ ] T011 [US1] Complete P1 integration coverage under the `US1` group in `src/fetch-plus.test.js` for JSON request bodies, response `data`, `status`, `statusText`, and `headers`, and empty bodies returning `''`, including HEAD and 204 responses.
+- [X] T004 [US1] Add tests under the `US1` group for URL-only invocation, config-object invocation, and default GET behavior in `src/fetch-plus.test.js`.
+- [X] T005 [US1] Add tests under the `US1` group for GET, POST, PUT, PATCH, DELETE, HEAD, and OPTIONS helper signatures in `src/fetch-plus.test.js`.
+- [X] T006 [P] [US1] Implement JSON-compatible request-body serialization in `src/request.ts`, preserving caller content type and setting `application/json` only when absent.
+- [X] T007 [P] [US1] Implement one-read response conversion in `src/response.ts`, parsing valid JSON for JSON media types, preserving malformed JSON as text, and returning non-JSON text or `''` for every empty body, including HEAD and 204.
+- [X] T008 [US1] Implement `FetchPlusClient` default-GET dispatch and successful response construction using the helpers in `src/client.ts`.
+- [X] T009 [US1] Add GET, POST, PUT, PATCH, DELETE, HEAD, and OPTIONS methods in the `AxiosLike` base class in `src/axios-like.ts`, inherited by `FetchPlusClient` in `src/client.ts` and forwarding settings per `contracts/client-api.md`.
+- [X] T010 [US1] Export the callable default-client facade and public request types from `src/main.ts`, delegating client state to `FetchPlusClient`.
+- [X] T011 [US1] Complete P1 integration coverage under the `US1` group in `src/fetch-plus.test.js` for JSON request bodies, response `data`, `status`, `statusText`, and `headers`, and empty bodies returning `''`, including HEAD and 204 responses.
 
 **Checkpoint**: The browser-facing default client can issue and parse the
 specified basic requests using controlled handlers. Full US1 acceptance
@@ -80,7 +80,7 @@ Put all US2 tests in the `US2` group in `src/fetch-plus.test.js`.
 
 - [ ] T012 [US2] Add tests for creating two clients, isolating their defaults, and applying request-level overrides in `src/fetch-plus.test.js`.
 - [ ] T013 [P] [US2] Add client creation and per-instance default storage to `FetchPlusClient` in `src/client.ts`, exposing the configured-client factory from `src/main.ts`.
-- [ ] T014 [P] [US2] Implement configuration precedence in `src/request.ts` (built-in, client, then request); merge headers case-insensitively and never inherit request `data`.
+- [ ] T014 [P] [US2] Extend request/default configuration types in `src/types.ts` and implement precedence in `src/request.ts` (built-in, client, then request); merge headers case-insensitively and never inherit request `data`.
 - [ ] T015 [US2] Add tests for relative and absolute `baseURL` handling and query values in `src/fetch-plus.test.js`.
 - [ ] T016 [US2] Implement base-URL joining and query serialization in `src/request.ts`: join relative paths with one slash, leave absolute URLs unchanged, preserve existing query values, repeat array keys, preserve false and zero, and omit null and undefined.
 - [ ] T017 [US2] Add tests for omitted cross-origin credentials by default and explicit credential opt-in in `src/fetch-plus.test.js`.

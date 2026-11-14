@@ -44,8 +44,8 @@ npm run build
 
 Expected result: strict TypeScript checking and the Vite library build both
 complete successfully, producing the ESM and CommonJS entry points declared
-by the package metadata. The CommonJS output is for browser bundlers and does
-not imply direct Node.js support.
+by the package metadata, along with TypeScript declarations. The CommonJS
+output is for browser bundlers and does not imply direct Node.js support.
 
 ## Smoke-Test in a Browser
 
