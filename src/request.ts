@@ -43,7 +43,7 @@ export function mergeRequest(defaults: ClientDefaults, request: RequestConfig): 
         headers: mergeHeaders(defaults.headers, request.headers),
         data: request.data,
         baseURL: request.baseURL ?? defaults.baseURL,
-        params: request.params ?? defaults.params,
+        params: cloneParams(request.params ?? defaults.params),
         signal: request.signal ?? defaults.signal,
         timeout: request.timeout !== undefined ? request.timeout : defaults.timeout,
         withCredentials: request.withCredentials !== undefined ? request.withCredentials : defaults.withCredentials,

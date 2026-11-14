@@ -1,3 +1,4 @@
+import { FetchPlusError } from './errors';
 import type { FetchPlusResponse } from './types';
 
 export async function readResponse<T>(response: Response): Promise<FetchPlusResponse<T>> {
@@ -13,10 +14,12 @@ export async function readResponse<T>(response: Response): Promise<FetchPlusResp
         }
     }
 
-    return {
+    const result = {
         data: data as T,
         status: response.status,
         statusText: response.statusText,
         headers: response.headers,
     };
+    if (!response.ok) throw new FetchPlusError('http', { response: result });
+    return result;
 }
