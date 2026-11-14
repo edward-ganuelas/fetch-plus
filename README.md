@@ -1,4 +1,4 @@
-# fetch-plus
+# hila
 
 A browser-only Fetch client with a callable, Axios-style request interface.
 Browsers must provide native Fetch and AbortController; Node.js is not a
@@ -6,7 +6,7 @@ supported consumer runtime. ESM and CommonJS builds are provided for browser
 tooling.
 
 ```js
-import client from 'fetch-plus';
+import client from '@eightrayedsun/hila';
 
 const response = await client('/api/items');
 const created = await client.post('/api/items', { name: 'Example' });

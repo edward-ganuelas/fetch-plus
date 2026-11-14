@@ -73,7 +73,7 @@ const responses = await Promise.all([
 const normalize = ({ data, status, statusText, headers }) => ({
     data, status, statusText, headers: Array.from(headers.entries()).sort(),
 });
-if (nativeResponse.status !== 200 || nativeResponse.data.name !== 'fetch-plus' ||
+if (nativeResponse.status !== 200 || nativeResponse.data.name !== '@eightrayedsun/hila' ||
     responses[0].status !== 200 || responses[0].data.message !== 'ok' ||
     JSON.stringify(normalize(responses[0])) !== JSON.stringify(normalize(responses[1]))) {
     throw new Error('Browser package parity check failed');
