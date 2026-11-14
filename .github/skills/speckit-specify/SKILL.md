@@ -76,7 +76,7 @@ Given that feature description, do this:
 
    If the user explicitly provided `GIT_BRANCH_NAME`, pass it through to the hook so the branch script uses the exact value as the branch name (bypassing all prefix/suffix generation).
 
-3. **Create the spec feature directory**:
+3. **Resolve the spec feature directory**:
 
    Specs live under the default `specs/` directory unless the user explicitly provides `SPECIFY_FEATURE_DIRECTORY`.
 
@@ -90,12 +90,13 @@ Given that feature description, do this:
       - Set `SPECIFY_FEATURE_DIRECTORY` to `specs/<directory-name>`
       - If `branch_numbering` was used (and `feature_numbering` was absent), emit a one-line warning: "⚠️ `branch_numbering` in init-options.json is deprecated. Rename to `feature_numbering`."
 
-   **Create the directory and spec file**:
+   **Initialize or load the specification**:
    - Run `.specify/scripts/bash/resolve-template.sh spec-template --json` from the repository root and parse `TEMPLATE_CONTENT` as the active `spec-template`. The shared resolver composes project overrides, preset layers, and extension layers over the core template, including `append`, `prepend`, and `wrap` strategies. If it fails, stop and report the resolution error; do not continue with only one contributing template layer.
    - `mkdir -p SPECIFY_FEATURE_DIRECTORY`
-   - Write `TEMPLATE_CONTENT` to `SPECIFY_FEATURE_DIRECTORY/spec.md` as the starting point. Do not copy a template file from disk instead: when a preset composes `spec-template`, no single file holds the full template.
    - Set `SPEC_FILE` to `SPECIFY_FEATURE_DIRECTORY/spec.md`
-   - Persist the resolved path to `.specify/feature.json`:
+   - If `SPEC_FILE` exists, read and preserve its contents, including accepted clarifications, and apply the requested refinement to that document. Do not overwrite it with the template.
+   - If `SPEC_FILE` does not exist, write `TEMPLATE_CONTENT` to it as the starting point. Do not copy a template file from disk instead: when a preset composes `spec-template`, no single file holds the full template.
+   - Unless `SPECIFY_FEATURE_NO_PERSIST` is `1` or `true`, persist the resolved path to `.specify/feature.json`:
      ```json
      {
        "feature_directory": "<resolved feature dir>"
@@ -103,11 +104,12 @@ Given that feature description, do this:
      ```
      Write the actual resolved directory path value (for example, `specs/003-user-auth`), not the literal string `SPECIFY_FEATURE_DIRECTORY`.
      This allows downstream commands (`/speckit-plan`, `/speckit-tasks`, etc.) to locate the feature directory without relying on git branch name conventions.
+     When persistence is disabled, leave `.specify/feature.json` unchanged and use the resolved feature directory for the current invocation.
 
    **IMPORTANT**:
-   - You must only create one feature per `/speckit-specify` invocation
+   - You must only create or update one feature per `/speckit-specify` invocation
    - The spec directory name and the git branch name are independent — they may be the same but that is the user's choice
-   - The spec directory and file are always created by this command, never by the hook
+   - This command creates the spec directory and file only if absent; a hook must not overwrite an existing spec
 
 4. Use `TEMPLATE_CONTENT` to understand required sections.
 
@@ -138,7 +140,7 @@ Given that feature description, do this:
     7. Identify Key Entities (if data involved)
     8. Return: SUCCESS (spec ready for planning)
 
-7. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description (arguments) while preserving section order and headings.
+7. Write the specification to SPEC_FILE using the template structure. For a new spec, replace placeholders with concrete details derived from the feature description (arguments); for an existing spec, make targeted updates while preserving unrelated requirements and clarifications.
 
 8. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
 

@@ -84,7 +84,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Execution Steps
 
-1. **Setup**: Run `.specify/scripts/bash/check-prerequisites.sh --json --template checklist-template` from repo root and parse JSON for FEATURE_DIR, AVAILABLE_DOCS list, and TEMPLATE_CONTENT.
+1. **Setup**: Run `.specify/scripts/bash/check-prerequisites.sh --json --paths-only` from repo root and parse JSON for FEATURE_DIR and FEATURE_SPEC. Check that the feature directory and spec exist; if either is missing, stop and instruct the user to run `/speckit-specify`. Discover `plan.md` and `tasks.md` independently if present; neither is required. Run `.specify/scripts/bash/resolve-template.sh checklist-template --json` separately and parse `TEMPLATE_CONTENT`; if template resolution fails, stop and report the error.
    - All file paths must be absolute.
    - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 

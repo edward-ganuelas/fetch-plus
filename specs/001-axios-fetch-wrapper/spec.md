@@ -16,6 +16,8 @@
 - Q: Which additional Axios-compatible features, if any, must the first release include beyond client instances, base URLs, and timeouts? → A: Request and response interceptors remain in scope.
 - Q: Should callers be able to explicitly send cookies or other credentials on cross-origin requests, or should the wrapper always keep the platform's default behavior? → A: Add an explicit opt-in for cross-origin credentials; default remains off.
 - Q: Since the package currently exports both ESM and CommonJS and the constitution requires equivalent behavior, should browser-only support keep the CommonJS build for browser bundlers without claiming Node.js support, or remove that export and amend the constitution? → A: Keep ESM and CommonJS exports; support browser runtimes only.
+- Q: Can an interceptor rejection handler recover a failure? → A: Yes; an
+  explicit rejection handler can return a fallback and continue the chain.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -131,6 +133,9 @@ contacting an external service.
    independently authored and relies only on public behavior references,
    without copied source code or non-public implementation materials, and
    supported and excluded behaviors are documented.
+7. **Given** an HTTP or interceptor failure, **When** a later rejection
+   interceptor explicitly returns a fallback, **Then** processing continues
+   with that value; otherwise the failure remains rejected.
 
 ### Edge Cases
 
@@ -142,9 +147,9 @@ contacting an external service.
   being silently replaced with a successful empty value.
 - A request that is cancelled before it is sent rejects without reporting an
   HTTP response.
-- A request or response interceptor that fails causes the request operation
-  to reject with that failure; the failure is not converted into a successful
-  response.
+- A request or response interceptor that fails leaves the chain rejected
+  unless a later rejection interceptor explicitly handles the failure.
+  Failures are not silently converted to successful responses.
 - A request with no custom content type preserves any body and content type
   behavior required by the platform for non-JSON values.
 - An absolute request URL is not prefixed by a configured base URL.
@@ -190,6 +195,8 @@ contacting an external service.
 - **FR-010**: The client MUST allow callers to register and remove request and
   response interceptors. Request interceptors MUST run in reverse
   registration order; response interceptors MUST run in registration order.
+  Failures MUST remain rejected unless a later rejection interceptor
+  explicitly handles them and returns a fallback value.
 - **FR-011**: Callers MUST be able to set a timeout for a client or an
   individual request. An individual request's timeout MUST override its
   client's default; zero MUST disable the timeout. A timed-out request MUST

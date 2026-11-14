@@ -97,5 +97,7 @@ wrapper's own timeout or caller signal identifies the abort reason.
 6. Resolve or reject according to the default 2xx status rule.
 7. Run response interceptors and settle the caller's promise.
 
-Any interceptor, serialization, or request failure rejects the operation; it
-MUST NOT be converted to a successful response by a fallback.
+Interceptor, serialization, and request failures enter the applicable
+rejection chain and remain rejected unless a later rejection interceptor
+explicitly handles the failure and returns a fallback value. A failure MUST
+NOT be silently converted into a successful response.

@@ -29,7 +29,7 @@ implementation slices.
 installed test-handler API.
 
 - [ ] T001 [P] Add a `"test": "vitest run"` script to `package.json` for a stable test command.
-- [ ] T002 [P] Replace MSW v1 `rest` handlers with MSW 2 `http` and `HttpResponse` handlers in `src/fetch-plus.test.js`, preserving the existing scenarios.
+- [ ] T002 [P] Replace MSW v1 `rest` handlers with MSW 2 `http` and `HttpResponse` handlers in `src/fetch-plus.test.js`, preserving scenarios: group basic requests under `describe('US1', ...)`, configuration under `describe('US2', ...)`, and errors/interceptors under `describe('US3', ...)`.
 
 ## Phase 2: Foundational
 
@@ -44,20 +44,20 @@ installed test-handler API.
 **Goal**: Let browser consumers make callable and method-based requests and
 read consistent successful response values.
 
-**Independent Test**: Run `npm test -- src/fetch-plus.test.js` and verify
+**Independent Test**: Run `npm test -- src/fetch-plus.test.js -t US1` and verify
 URL-only and config calls plus GET and JSON POST succeed against MSW handlers,
 returning the expected status and data without external network access.
 
 ### Tests and implementation for User Story 1
 
-- [ ] T004 [US1] Add tests for URL-only invocation, config-object invocation, and default GET behavior in `src/fetch-plus.test.js`.
-- [ ] T005 [US1] Add tests for GET, POST, PUT, PATCH, DELETE, HEAD, and OPTIONS helper signatures in `src/fetch-plus.test.js`.
+- [ ] T004 [US1] Add tests under the `US1` group for URL-only invocation, config-object invocation, and default GET behavior in `src/fetch-plus.test.js`.
+- [ ] T005 [US1] Add tests under the `US1` group for GET, POST, PUT, PATCH, DELETE, HEAD, and OPTIONS helper signatures in `src/fetch-plus.test.js`.
 - [ ] T006 [P] [US1] Implement JSON-compatible request-body serialization in `src/request.ts`, preserving caller content type and setting `application/json` only when absent.
 - [ ] T007 [P] [US1] Implement one-read response conversion in `src/response.ts`, parsing valid JSON for JSON media types, preserving malformed JSON as text, and returning non-JSON text or the specified empty-body value.
 - [ ] T008 [US1] Implement `FetchPlusClient` default-GET dispatch and successful response construction using the helpers in `src/client.ts`.
 - [ ] T009 [US1] Add GET, POST, PUT, PATCH, DELETE, HEAD, and OPTIONS methods to `FetchPlusClient` in `src/client.ts`, forwarding method, data, and request settings per `contracts/client-api.md`.
 - [ ] T010 [US1] Export the callable default-client facade and public request types from `src/main.ts`, delegating client state to `FetchPlusClient`.
-- [ ] T011 [US1] Complete P1 integration coverage in `src/fetch-plus.test.js` for JSON request bodies and response `data`, `status`, `statusText`, and `headers`.
+- [ ] T011 [US1] Complete P1 integration coverage under the `US1` group in `src/fetch-plus.test.js` for JSON request bodies and response `data`, `status`, `statusText`, and `headers`.
 
 **Checkpoint**: The browser-facing default client can issue and parse the
 specified basic requests using controlled handlers.
@@ -67,12 +67,14 @@ specified basic requests using controlled handlers.
 **Goal**: Let consumers create isolated clients and configure headers, query
 values, base URLs, timeouts, cancellation, and cross-origin credential opt-in.
 
-**Independent Test**: Run `npm test -- src/fetch-plus.test.js` and verify two
+**Independent Test**: Run `npm test -- src/fetch-plus.test.js -t 'US1|US2'` and verify two
 clients retain isolated defaults, request values override defaults, and
 base-URL, query, credential, timeout, and cancellation scenarios match the
 acceptance criteria.
 
 ### Tests and implementation for User Story 2
+
+Put all US2 tests in the `US2` group in `src/fetch-plus.test.js`.
 
 - [ ] T012 [US2] Add tests for creating two clients, isolating their defaults, and applying request-level overrides in `src/fetch-plus.test.js`.
 - [ ] T013 [P] [US2] Add client creation and per-instance default storage to `FetchPlusClient` in `src/client.ts`, exposing the configured-client factory from `src/main.ts`.
@@ -99,13 +101,15 @@ one, and interceptor ordering, removal, and rejection behavior are correct.
 
 ### Tests and implementation for User Story 3
 
+Put all US3 tests in the `US3` group in `src/fetch-plus.test.js`.
+
 - [ ] T021 [US3] Add tests for default 2xx handling, HTTP error response fields, and network failures without a fabricated response in `src/fetch-plus.test.js`.
-- [ ] T022 [US3] Add tests for request/response interceptor order, removal, per-client isolation, and rejection handling in `src/fetch-plus.test.js`.
+- [ ] T022 [US3] Add tests under the `US3` group in `src/fetch-plus.test.js` for interceptor order, removal, per-client isolation, unhandled failures, and explicit recovery of HTTP and interceptor failures by later rejection handlers.
 - [ ] T023 [P] [US3] Implement typed request errors in `src/errors.ts` for `http`, `network`, `timeout`, and `canceled` kinds; only HTTP errors carry a `response`.
 - [ ] T024 [P] [US3] Implement the `InterceptorManager` class in `src/interceptors.ts` with registration, opaque IDs, ejection, and no-op behavior for unknown IDs.
 - [ ] T025 [US3] Enforce the default 2xx status policy and construct HTTP errors with `response.status`, `response.data`, and `response.headers` in `src/response.ts`.
 - [ ] T026 [US3] Classify rejected Fetch operations as network, timeout, or cancellation errors without attaching an HTTP response in `src/client.ts`.
-- [ ] T027 [US3] Connect per-client request and response interceptor managers to the request pipeline in `src/client.ts`, running request interceptors in reverse and response interceptors in registration order.
+- [ ] T027 [US3] Connect per-client interceptor managers to the request pipeline in `src/client.ts`, running request interceptors in reverse and response interceptors in registration order, propagating unhandled failures and allowing explicit rejection-handler recovery.
 
 **Checkpoint**: The complete request lifecycle and all failure/interceptor
 scenarios are independently verifiable with controlled handlers.
@@ -187,7 +191,7 @@ Task: T024 Add InterceptorManager in src/interceptors.ts
 1. Complete setup and shared types.
 2. Implement and independently test callable requests, method helpers, and
    JSON request/response handling.
-3. Stop at the US1 checkpoint and run `npm test -- src/fetch-plus.test.js`.
+3. Stop at the US1 checkpoint and run `npm test -- src/fetch-plus.test.js -t US1`.
 4. Continue to client configuration only after the MVP request path passes.
 
 ### Incremental Delivery
