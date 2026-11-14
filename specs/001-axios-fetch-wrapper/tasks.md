@@ -46,21 +46,23 @@ read consistent successful response values.
 
 **Independent Test**: Run `npm test -- src/fetch-plus.test.js -t US1` and verify
 URL-only and config calls plus GET and JSON POST succeed against MSW handlers,
-returning the expected status and data without external network access.
+returning the expected status and data without external network access. Full
+US1 acceptance also requires the package parity check in T030 and T031.
 
 ### Tests and implementation for User Story 1
 
 - [ ] T004 [US1] Add tests under the `US1` group for URL-only invocation, config-object invocation, and default GET behavior in `src/fetch-plus.test.js`.
 - [ ] T005 [US1] Add tests under the `US1` group for GET, POST, PUT, PATCH, DELETE, HEAD, and OPTIONS helper signatures in `src/fetch-plus.test.js`.
 - [ ] T006 [P] [US1] Implement JSON-compatible request-body serialization in `src/request.ts`, preserving caller content type and setting `application/json` only when absent.
-- [ ] T007 [P] [US1] Implement one-read response conversion in `src/response.ts`, parsing valid JSON for JSON media types, preserving malformed JSON as text, and returning non-JSON text or the specified empty-body value.
+- [ ] T007 [P] [US1] Implement one-read response conversion in `src/response.ts`, parsing valid JSON for JSON media types, preserving malformed JSON as text, and returning non-JSON text or `''` for every empty body, including HEAD and 204.
 - [ ] T008 [US1] Implement `FetchPlusClient` default-GET dispatch and successful response construction using the helpers in `src/client.ts`.
 - [ ] T009 [US1] Add GET, POST, PUT, PATCH, DELETE, HEAD, and OPTIONS methods to `FetchPlusClient` in `src/client.ts`, forwarding method, data, and request settings per `contracts/client-api.md`.
 - [ ] T010 [US1] Export the callable default-client facade and public request types from `src/main.ts`, delegating client state to `FetchPlusClient`.
-- [ ] T011 [US1] Complete P1 integration coverage under the `US1` group in `src/fetch-plus.test.js` for JSON request bodies and response `data`, `status`, `statusText`, and `headers`.
+- [ ] T011 [US1] Complete P1 integration coverage under the `US1` group in `src/fetch-plus.test.js` for JSON request bodies, response `data`, `status`, `statusText`, and `headers`, and empty bodies returning `''`, including HEAD and 204 responses.
 
 **Checkpoint**: The browser-facing default client can issue and parse the
-specified basic requests using controlled handlers.
+specified basic requests using controlled handlers. Full US1 acceptance
+remains pending the ESM/CommonJS browser parity check in T030 and T031.
 
 ## Phase 4: User Story 2 - Configure reusable clients and requests (Priority: P2)
 
@@ -103,7 +105,7 @@ one, and interceptor ordering, removal, and rejection behavior are correct.
 
 Put all US3 tests in the `US3` group in `src/fetch-plus.test.js`.
 
-- [ ] T021 [US3] Add tests for default 2xx handling, HTTP error response fields, and network failures without a fabricated response in `src/fetch-plus.test.js`.
+- [ ] T021 [US3] Add tests for default 2xx handling, HTTP error response fields including `''` data for an empty error body, and network failures without a fabricated response in `src/fetch-plus.test.js`.
 - [ ] T022 [US3] Add tests under the `US3` group in `src/fetch-plus.test.js` for interceptor order, removal, per-client isolation, unhandled failures, and explicit recovery of HTTP and interceptor failures by later rejection handlers.
 - [ ] T023 [P] [US3] Implement typed request errors in `src/errors.ts` for `http`, `network`, `timeout`, and `canceled` kinds; only HTTP errors carry a `response`.
 - [ ] T024 [P] [US3] Implement the `InterceptorManager` class in `src/interceptors.ts` with registration, opaque IDs, ejection, and no-op behavior for unknown IDs.
@@ -121,8 +123,9 @@ complete validation workflow.
 
 - [ ] T028 [P] Document supported browser capabilities, public usage, compatibility boundaries, and the absence of Node.js runtime support in `README.md`.
 - [ ] T029 [P] Configure explicit ESM and CommonJS-compatible browser-bundler outputs in `vite.config.ts` and verify the corresponding paths in `package.json`.
-- [ ] T030 Update `specs/001-axios-fetch-wrapper/quickstart.md` with browser smoke steps for the ESM entry and CommonJS consumption through browser tooling; do not use Node.js execution as a runtime support test.
-- [ ] T031 Run `npm test`, `npm run build`, and the browser smoke procedure in `specs/001-axios-fetch-wrapper/quickstart.md`; verify generated `dist/fetch-plus.js` and `dist/fetch-plus.umd.cjs` match `package.json`.
+- [ ] T030 Update `specs/001-axios-fetch-wrapper/quickstart.md` with runnable browser smoke steps importing the built ESM entry and bundling the built CommonJS entry, issuing the same controlled request and comparing response data, status, status text, and headers; do not use Node.js execution as a runtime support test.
+- [ ] T031 Run `npm test`, `npm run build`, and the browser smoke procedure in `specs/001-axios-fetch-wrapper/quickstart.md`; verify both entry points return matching data, status, status text, and headers and generated `dist/fetch-plus.js` and `dist/fetch-plus.umd.cjs` match `package.json`.
+- [ ] T032 Review implementation files in `src/` and compatibility claims in `README.md` against the public references in `specs/001-axios-fetch-wrapper/research.md`; record the review outcome, confirming independent authorship, no non-public materials, and documented supported and excluded behavior.
 
 ## Dependencies & Execution Order
 
@@ -139,8 +142,9 @@ complete validation workflow.
 
 ### User Story Dependencies
 
-- **US1 (P1)**: Depends only on shared types; independently demonstrates
-  callable GET and JSON request/response behavior.
+- **US1 (P1)**: Depends on shared types for the core request checkpoint;
+  full acceptance additionally depends on the built-format browser parity
+  validation in T030 and T031.
 - **US2 (P2)**: Depends on US1's client dispatch and method helpers so it can
   add isolated configuration to a working client.
 - **US3 (P3)**: Depends on US1's request pipeline and US2's per-client model
@@ -192,7 +196,8 @@ Task: T024 Add InterceptorManager in src/interceptors.ts
 2. Implement and independently test callable requests, method helpers, and
    JSON request/response handling.
 3. Stop at the US1 checkpoint and run `npm test -- src/fetch-plus.test.js -t US1`.
-4. Continue to client configuration only after the MVP request path passes.
+4. Continue to client configuration after the MVP request path passes; do not
+   mark all US1 acceptance complete until T030 and T031 verify package parity.
 
 ### Incremental Delivery
 

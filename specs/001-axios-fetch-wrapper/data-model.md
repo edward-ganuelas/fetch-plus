@@ -62,14 +62,15 @@ The result of a completed HTTP exchange:
 
 | Field | Meaning |
 |---|---|
-| `data` | Parsed JSON value, text body, or empty body value |
+| `data` | Parsed JSON value, text body, or `''` for an empty body, including HEAD and 204 responses |
 | `status` | HTTP status code |
 | `statusText` | HTTP status text |
 | `headers` | Response headers |
 
 Each body is consumed once. JSON media types are parsed when valid; malformed
 JSON remains available as text. Other media types are returned as text in the
-initial compatibility scope.
+initial compatibility scope. Empty HTTP error response bodies also have
+`response.data` set to `''`.
 
 ## Request Error
 
