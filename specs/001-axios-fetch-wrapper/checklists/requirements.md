@@ -32,10 +32,10 @@
 ## Notes
 
 - Content-quality review: the specification describes user-visible request,
-  response, and failure behavior; it avoids languages, frameworks, internal
-  architecture, and code structure. The requested Fetch transport and
-  clean-room constraint are stated as scope requirements.
-- Requirement review: FR-001 through FR-009 are testable and map to the
+  response, failure, and browser-support behavior; it avoids prescribing
+  internal architecture and code structure. The OOP preference is captured in
+  the implementation plan.
+- Requirement review: FR-001 through FR-014 are testable and map to the
   acceptance scenarios or the clean-room review scenario. Scope exclusions
   and defaults are recorded under Assumptions.
-- All checklist items pass; no specification revisions were needed.
+- All checklist items pass; no clarification markers remain.

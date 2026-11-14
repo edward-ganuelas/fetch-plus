@@ -15,6 +15,7 @@
 - Q: Should the first release target the common request behavior already listed in the spec, or broader parity with Axios features such as client instances, base URLs, and timeouts? → A: Expand the first release to cover broader Axios features, including instances, base URLs, and timeouts.
 - Q: Which additional Axios-compatible features, if any, must the first release include beyond client instances, base URLs, and timeouts? → A: Request and response interceptors remain in scope.
 - Q: Should callers be able to explicitly send cookies or other credentials on cross-origin requests, or should the wrapper always keep the platform's default behavior? → A: Add an explicit opt-in for cross-origin credentials; default remains off.
+- Q: Since the package currently exports both ESM and CommonJS and the constitution requires equivalent behavior, should browser-only support keep the CommonJS build for browser bundlers without claiming Node.js support, or remove that export and amend the constitution? → A: Keep ESM and CommonJS exports; support browser runtimes only.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -44,6 +45,10 @@ response data.
    the caller receives the response status and data.
 4. **Given** a successful response with a JSON body, **When** the request
    completes, **Then** the returned data contains the parsed JSON value.
+5. **Given** a browser application that can consume either package format,
+   **When** it uses the ESM entry point or bundles the CommonJS entry point,
+   **Then** both expose equivalent supported behavior; Node.js runtime support
+   is not claimed.
 
 ---
 
@@ -195,6 +200,10 @@ contacting an external service.
 - **FR-013**: The project MUST document the supported compatibility behaviors
   and the important behaviors that are outside the initial compatibility
   scope.
+- **FR-014**: The library MUST support browser runtimes with native Fetch and
+  AbortController only; it MUST NOT claim Node.js runtime support. The ESM and
+  CommonJS package exports MUST provide equivalent documented behavior when
+  consumed by supported browser tooling.
 
 ### Key Entities *(include if data involved)*
 
@@ -240,6 +249,12 @@ contacting an external service.
 - The wrapper uses the platform's Fetch capability as its transport, and
   caller-provided cancellation signals are the supported cancellation
   mechanism.
+- Browser support is capability-based: browsers must provide native Fetch and
+  AbortController. No minimum browser-version matrix or polyfill support is
+  promised. Node.js is not a supported runtime.
+- The existing CommonJS export remains available for browser bundlers, with
+  behavior equivalent to the ESM export; its presence does not imply Node.js
+  runtime support.
 - Relative URLs are joined to a configured base URL; absolute URLs bypass the
   base URL. Request-level settings override client defaults. A timeout of
   zero means no timeout, and an omitted request timeout inherits the client
