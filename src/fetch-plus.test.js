@@ -275,6 +275,19 @@ describe('US2', () => {
         expect(fetchSpy.mock.calls[0][0]).toBe('https://api.example.com/items?existing=one&flag=false#section');
     });
 
+    it('preserves the original query bytes when appending or omitting parameters', async () => {
+        const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response('ok'));
+        const url = 'https://api.example.com/items?token=%E9&name=a%20b#section';
+        await axiosCompatible.get(url, { params: { ignored: null } });
+        await axiosCompatible.get(url, { params: { added: 'a b' } });
+        await axiosCompatible.get('https://api.example.com/items?#section', { params: { added: 1 } });
+        expect(fetchSpy.mock.calls.map(([requestUrl]) => requestUrl)).toEqual([
+            url,
+            'https://api.example.com/items?token=%E9&name=a%20b&added=a+b#section',
+            'https://api.example.com/items?added=1#section',
+        ]);
+    });
+
     it('uses the Fetch same-origin credential default unless explicitly opted in', async () => {
         inspectRequests();
         const client = axiosCompatible.create({ baseURL: 'https://api.example.com', withCredentials: true });

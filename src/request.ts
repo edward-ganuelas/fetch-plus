@@ -60,9 +60,7 @@ export function buildUrl(url: string, baseURL?: string, params?: QueryParams): s
     const hashIndex = combined.indexOf('#');
     const hash = hashIndex < 0 ? '' : combined.slice(hashIndex);
     const withoutHash = hashIndex < 0 ? combined : combined.slice(0, hashIndex);
-    const queryIndex = withoutHash.indexOf('?');
-    const path = queryIndex < 0 ? withoutHash : withoutHash.slice(0, queryIndex);
-    const query = new URLSearchParams(queryIndex < 0 ? '' : withoutHash.slice(queryIndex + 1));
+    const query = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {
         for (const item of Array.isArray(value) ? value : [value]) {
             if (item === null || item === undefined) continue;
@@ -73,7 +71,9 @@ export function buildUrl(url: string, baseURL?: string, params?: QueryParams): s
         }
     }
     const search = query.toString();
-    return `${path}${search ? `?${search}` : queryIndex >= 0 ? '?' : ''}${hash}`;
+    if (!search) return combined;
+    const separator = !withoutHash.includes('?') ? '?' : /[?&]$/.test(withoutHash) ? '' : '&';
+    return `${withoutHash}${separator}${search}${hash}`;
 }
 
 export function createAbortControl(signal?: AbortSignal, timeout = 0) {
